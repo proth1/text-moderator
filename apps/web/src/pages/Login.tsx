@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { UserRole } from "../types";
 
 export default function Login() {
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState("demo-api-key");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();

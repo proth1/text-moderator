@@ -95,7 +95,12 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.LoggingMiddleware(logger))
-	router.Use(middleware.CORSMiddleware(middleware.DefaultCORSConfig()))
+	router.Use(middleware.SecurityHeadersMiddleware(cfg.Environment))
+	router.Use(middleware.CORSMiddleware(middleware.CORSConfigFromOrigins(cfg.AllowedOrigins)))
+
+	// Rate limiting
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM)
+	router.Use(rateLimiter.Middleware())
 
 	// Request body size limit
 	router.Use(func(c *gin.Context) {
@@ -140,21 +145,39 @@ func healthHandler() gin.HandlerFunc {
 	}
 }
 
+// serviceBaseURL returns the base URL for a backend service.
+// If a full URL is configured (for Cloud Run), it takes precedence over host:port.
+func serviceBaseURL(cfg *config.Config, service string) string {
+	switch service {
+	case "moderation":
+		if cfg.ModerationURL != "" {
+			return strings.TrimRight(cfg.ModerationURL, "/")
+		}
+		return fmt.Sprintf("http://%s:%s", cfg.ModerationHost, cfg.ModerationPort)
+	case "policy-engine":
+		if cfg.PolicyEngineURL != "" {
+			return strings.TrimRight(cfg.PolicyEngineURL, "/")
+		}
+		return fmt.Sprintf("http://%s:%s", cfg.PolicyEngineHost, cfg.PolicyEnginePort)
+	case "review":
+		if cfg.ReviewURL != "" {
+			return strings.TrimRight(cfg.ReviewURL, "/")
+		}
+		return fmt.Sprintf("http://%s:%s", cfg.ReviewHost, cfg.ReviewPort)
+	default:
+		return ""
+	}
+}
+
 func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Determine target service URL
-		var targetURL string
-		switch service {
-		case "moderation":
-			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.ModerationHost, cfg.ModerationPort, path)
-		case "policy-engine":
-			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.PolicyEngineHost, cfg.PolicyEnginePort, path)
-		case "review":
-			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.ReviewHost, cfg.ReviewPort, path)
-		default:
+		baseURL := serviceBaseURL(cfg, service)
+		if baseURL == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "unknown service"})
 			return
 		}
+		targetURL := baseURL + path
 
 		// Replace path parameters
 		for _, param := range c.Params {

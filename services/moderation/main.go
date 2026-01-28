@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 	"time"
 
@@ -119,7 +121,7 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 	router.GET("/health", healthHandler(db, hfClient, logger))
 
 	// Moderation endpoint
-	router.POST("/moderate", moderateHandler(db, hfClient, evaluator, evidenceWriter, logger))
+	router.POST("/moderate", moderateHandler(db, hfClient, evaluator, evidenceWriter, cfg, logger))
 
 	return router
 }
@@ -168,12 +170,47 @@ func healthHandler(db *database.PostgresDB, hfClient *client.HuggingFaceClient, 
 	}
 }
 
-func moderateHandler(db *database.PostgresDB, hfClient *client.HuggingFaceClient, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, logger *zap.Logger) gin.HandlerFunc {
+var sourcePattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
+
+func moderateHandler(db *database.PostgresDB, hfClient *client.HuggingFaceClient, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, cfg *config.Config, logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req models.ModerationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		// Validate content length
+		if len(req.Content) > cfg.MaxContentLength {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("content exceeds maximum length of %d characters", cfg.MaxContentLength),
+			})
+			return
+		}
+
+		// Validate source field
+		if req.Source != "" {
+			if len(req.Source) > 100 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "source field exceeds maximum length of 100 characters"})
+				return
+			}
+			if !sourcePattern.MatchString(req.Source) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "source field must contain only alphanumeric characters and hyphens"})
+				return
+			}
+		}
+
+		// Validate context_metadata
+		if req.ContextMetadata != nil {
+			if len(req.ContextMetadata) > 10 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "context_metadata exceeds maximum of 10 keys"})
+				return
+			}
+			metaBytes, err := json.Marshal(req.ContextMetadata)
+			if err == nil && len(metaBytes) > 1024 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "context_metadata exceeds maximum size of 1KB"})
+				return
+			}
 		}
 
 		ctx := c.Request.Context()

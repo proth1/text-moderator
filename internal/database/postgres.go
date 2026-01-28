@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -56,6 +57,11 @@ func NewPostgresDB(ctx context.Context, cfg Config, logger *zap.Logger) (*Postgr
 	} else {
 		poolConfig.MaxConnIdleTime = 30 * time.Minute
 	}
+
+	// For transaction-mode connection poolers (e.g., Supabase Supavisor), we need to handle
+	// prepared statement caching. The Describe mode performs a Describe after each Prepare
+	// which is compatible with transaction poolers but slower.
+	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 
 	// Create connection pool
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)

@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,6 +39,28 @@ func DefaultCORSConfig() CORSConfig {
 	}
 }
 
+// CORSConfigFromOrigins creates a CORS config with specific allowed origins.
+// Pass a comma-separated string of origins (e.g. "https://example.com,https://other.com").
+// Empty string defaults to "*" (development mode).
+func CORSConfigFromOrigins(origins string) CORSConfig {
+	cfg := DefaultCORSConfig()
+	if origins != "" {
+		parsed := strings.Split(origins, ",")
+		trimmed := make([]string, 0, len(parsed))
+		for _, o := range parsed {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				trimmed = append(trimmed, o)
+			}
+		}
+		if len(trimmed) > 0 {
+			cfg.AllowedOrigins = trimmed
+			cfg.AllowCredentials = true
+		}
+	}
+	return cfg
+}
+
 // CORSMiddleware creates a CORS middleware with the given configuration
 func CORSMiddleware(config CORSConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -47,6 +72,7 @@ func CORSMiddleware(config CORSConfig) gin.HandlerFunc {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 			} else if origin != "" && contains(config.AllowedOrigins, origin) {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Vary", "Origin")
 			}
 		}
 
@@ -67,7 +93,7 @@ func CORSMiddleware(config CORSConfig) gin.HandlerFunc {
 		}
 
 		if config.MaxAge > 0 {
-			c.Writer.Header().Set("Access-Control-Max-Age", string(rune(config.MaxAge)))
+			c.Writer.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
 		}
 
 		// Handle preflight OPTIONS request

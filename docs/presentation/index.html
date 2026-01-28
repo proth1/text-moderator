@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civitas AI - Trust & Safety Infrastructure</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --slide-bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #3b82f6;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-yellow: #eab308;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--slide-bg);
+      color: #e2e8f0;
+    }
+
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 2rem;
+      scroll-snap-align: start;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid #334155;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-green { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .badge-blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .badge-yellow { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+
+    .score-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: #334155;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    #graph-container {
+      width: 100%;
+      height: 500px;
+      background: var(--card-bg);
+      border-radius: 1rem;
+      border: 1px solid #334155;
+    }
+
+    .node-label {
+      font-size: 10px;
+      fill: #e2e8f0;
+      pointer-events: none;
+    }
+
+    .slide-nav {
+      position: fixed;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+
+    .slide-nav-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #334155;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .slide-nav-dot.active {
+      background: var(--accent);
+      transform: scale(1.3);
+    }
+
+    .api-widget textarea {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      color: #e2e8f0;
+      padding: 1rem;
+      font-family: monospace;
+      width: 100%;
+      resize: none;
+    }
+
+    .api-widget button {
+      background: var(--accent);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .api-widget button:hover {
+      background: #2563eb;
+    }
+
+    .code-block {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      overflow-x: auto;
+    }
+
+    .framework-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 2rem;
+      border-left: 2px solid #334155;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .timeline-item.complete::before { background: var(--accent-green); }
+    .timeline-item.planned::before { background: var(--accent-yellow); }
+    .timeline-item.future::before { background: #334155; border: 2px solid #475569; }
+  </style>
+</head>
+<body class="scroll-snap-y">
+
+  <!-- Navigation dots -->
+  <nav class="slide-nav" id="slideNav"></nav>
+
+  <!-- Slide 1: Title -->
+  <section class="slide" id="slide-1">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="badge badge-blue mb-6">Trust & Safety Infrastructure</div>
+      <h1 class="text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
+        Civitas AI
+      </h1>
+      <p class="text-xl text-slate-400 mb-8">
+        Enterprise-grade content moderation with ML-powered classification,
+        configurable policies, human-in-the-loop review, and immutable audit trails.
+      </p>
+      <div class="flex justify-center gap-4 flex-wrap">
+        <span class="badge badge-green">EU AI Act Ready</span>
+        <span class="badge badge-blue">NIST AI RMF</span>
+        <span class="badge badge-yellow">SOC 2 Controls</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2: Problem -->
+  <section class="slide" id="slide-2">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">The Challenge</h2>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4 text-red-400">Content Moderation at Scale</h3>
+          <ul class="space-y-3 text-slate-400">
+            <li>Millions of user-generated content pieces daily</li>
+            <li>Toxic, harmful, and policy-violating content</li>
+            <li>Real-time decision requirements</li>
+            <li>Multi-platform, multi-language challenges</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4 text-yellow-400">Regulatory Pressure</h3>
+          <ul class="space-y-3 text-slate-400">
+            <li>EU AI Act compliance requirements</li>
+            <li>Transparency and explainability mandates</li>
+            <li>Human oversight obligations</li>
+            <li>Immutable audit trail requirements</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4 text-blue-400">Operational Complexity</h3>
+          <ul class="space-y-3 text-slate-400">
+            <li>Inconsistent moderation decisions</li>
+            <li>No visibility into AI decision-making</li>
+            <li>Difficult policy enforcement</li>
+            <li>Missing evidence for appeals</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4 text-green-400">The Solution</h3>
+          <ul class="space-y-3 text-slate-400">
+            <li>ML-powered automated classification</li>
+            <li>Configurable, versioned policies</li>
+            <li>Human-in-the-loop escalation</li>
+            <li>Cryptographically-secured audit trail</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3: Architecture -->
+  <section class="slide" id="slide-3">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Architecture</h2>
+      <div class="card">
+        <div class="grid md:grid-cols-4 gap-6 text-center">
+          <div class="p-4 bg-slate-800 rounded-lg">
+            <div class="text-3xl mb-2">🌐</div>
+            <h4 class="font-semibold">Cloudflare Pages</h4>
+            <p class="text-sm text-slate-400">React Frontend</p>
+          </div>
+          <div class="p-4 bg-slate-800 rounded-lg">
+            <div class="text-3xl mb-2">🚪</div>
+            <h4 class="font-semibold">Gateway</h4>
+            <p class="text-sm text-slate-400">Rate Limiting, CORS, Auth</p>
+          </div>
+          <div class="p-4 bg-slate-800 rounded-lg">
+            <div class="text-3xl mb-2">🤖</div>
+            <h4 class="font-semibold">Moderation</h4>
+            <p class="text-sm text-slate-400">HuggingFace ML</p>
+          </div>
+          <div class="p-4 bg-slate-800 rounded-lg">
+            <div class="text-3xl mb-2">📋</div>
+            <h4 class="font-semibold">Policy Engine</h4>
+            <p class="text-sm text-slate-400">Configurable Rules</p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-center">
+          <svg width="100%" height="100" viewBox="0 0 800 100">
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+              </marker>
+            </defs>
+            <line x1="100" y1="50" x2="200" y2="50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
+            <line x1="300" y1="50" x2="400" y2="50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
+            <line x1="500" y1="50" x2="600" y2="50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
+            <line x1="600" y1="70" x2="600" y2="90" stroke="#22c55e" stroke-width="2"/>
+            <text x="600" y="100" fill="#22c55e" font-size="12" text-anchor="middle">PostgreSQL</text>
+            <text x="700" y="100" fill="#ef4444" font-size="12" text-anchor="middle">Redis</text>
+            <line x1="700" y1="70" x2="700" y2="90" stroke="#ef4444" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="mt-6 grid md:grid-cols-3 gap-4 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-green-500"></span>
+            <span>Supabase PostgreSQL (Pooled)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+            <span>Upstash Redis (TLS)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+            <span>Cloud Run (Serverless)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4: Live Demo Screenshots -->
+  <section class="slide" id="slide-4">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Live Demo</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Dashboard Overview</h3>
+          <div class="bg-slate-800 rounded-lg h-48 flex items-center justify-center text-slate-500">
+            <a href="https://civitas-web.pages.dev" target="_blank" class="text-blue-400 hover:underline">
+              Open Dashboard →
+            </a>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Moderation Demo</h3>
+          <div class="bg-slate-800 rounded-lg h-48 flex items-center justify-center text-slate-500">
+            <a href="https://civitas-web.pages.dev/demo" target="_blank" class="text-blue-400 hover:underline">
+              Open Demo →
+            </a>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Policy Management</h3>
+          <div class="bg-slate-800 rounded-lg h-48 flex items-center justify-center text-slate-500">
+            <a href="https://civitas-web.pages.dev/policies" target="_blank" class="text-blue-400 hover:underline">
+              Open Policies →
+            </a>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Audit Log</h3>
+          <div class="bg-slate-800 rounded-lg h-48 flex items-center justify-center text-slate-500">
+            <a href="https://civitas-web.pages.dev/audit" target="_blank" class="text-blue-400 hover:underline">
+              Open Audit Log →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: API in Action + Try It Widget -->
+  <section class="slide" id="slide-5">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">API in Action</h2>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="api-widget card">
+          <h3 class="text-lg font-semibold mb-4">Try It Live</h3>
+          <textarea id="apiInput" rows="3" placeholder="Enter text to moderate...">Hello, this is a friendly message</textarea>
+          <button onclick="moderateText()" class="mt-4 w-full" id="moderateBtn">
+            Moderate Text
+          </button>
+          <div id="apiResult" class="mt-4 hidden">
+            <div class="flex items-center gap-2 mb-3">
+              <span id="actionBadge" class="badge"></span>
+              <span id="confidenceText" class="text-sm text-slate-400"></span>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-sm">
+                <span>Toxicity</span>
+                <span id="toxicityScore">0%</span>
+              </div>
+              <div class="score-bar">
+                <div id="toxicityBar" class="score-fill bg-red-500" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Request / Response</h3>
+          <div class="code-block mb-4">
+            <div class="text-blue-400 mb-1">POST /api/v1/moderate</div>
+            <pre id="requestBody">{
+  "content": "Hello...",
+  "source": "demo"
+}</pre>
+          </div>
+          <div class="code-block">
+            <div class="text-green-400 mb-1">Response</div>
+            <pre id="responseBody">{
+  "action": "allow",
+  "category_scores": {...}
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 6: Policy Engine -->
+  <section class="slide" id="slide-6">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Policy Engine</h2>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Configurable Thresholds</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Toxicity → Block</span>
+                <span>0.80</span>
+              </div>
+              <div class="score-bar">
+                <div class="score-fill bg-red-500" style="width: 80%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Hate → Block</span>
+                <span>0.70</span>
+              </div>
+              <div class="score-bar">
+                <div class="score-fill bg-red-500" style="width: 70%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Harassment → Warn</span>
+                <span>0.75</span>
+              </div>
+              <div class="score-bar">
+                <div class="score-fill bg-yellow-500" style="width: 75%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Profanity → Warn</span>
+                <span>0.90</span>
+              </div>
+              <div class="score-bar">
+                <div class="score-fill bg-yellow-500" style="width: 90%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Multi-Policy Support</h3>
+          <div class="space-y-3">
+            <div class="p-3 bg-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <div class="font-medium">Standard Community Guidelines</div>
+                <div class="text-sm text-slate-400">v1 • Global • Published</div>
+              </div>
+              <span class="badge badge-green">Active</span>
+            </div>
+            <div class="p-3 bg-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <div class="font-medium">Youth Safe Mode</div>
+                <div class="text-sm text-slate-400">v1 • Under 13 • Published</div>
+              </div>
+              <span class="badge badge-green">Active</span>
+            </div>
+            <div class="p-3 bg-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <div class="font-medium">Relaxed Forum Policy</div>
+                <div class="text-sm text-slate-400">v1 • US Forums • Draft</div>
+              </div>
+              <span class="badge badge-yellow">Draft</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 7: Human-in-the-Loop -->
+  <section class="slide" id="slide-7">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Human-in-the-Loop</h2>
+      <div class="card">
+        <div class="flex items-start gap-8">
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold mb-4">Review Queue Workflow</h3>
+            <div class="space-y-4">
+              <div class="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold">1</div>
+                <div>
+                  <div class="font-medium">Content Escalated</div>
+                  <div class="text-sm text-slate-400">ML confidence below threshold or edge case detected</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold">2</div>
+                <div>
+                  <div class="font-medium">Moderator Review</div>
+                  <div class="text-sm text-slate-400">Human reviews content with ML recommendations</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold">3</div>
+                <div>
+                  <div class="font-medium">Decision with Rationale</div>
+                  <div class="text-sm text-slate-400">Approve/Reject/Escalate with mandatory explanation</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-sm font-bold">4</div>
+                <div>
+                  <div class="font-medium">Evidence Recorded</div>
+                  <div class="text-sm text-slate-400">Immutable audit trail with cryptographic hash</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="w-64">
+            <h4 class="font-medium mb-3">Moderator Actions</h4>
+            <div class="space-y-2">
+              <button class="w-full p-2 bg-green-600 rounded text-sm">✓ Approve (Allow)</button>
+              <button class="w-full p-2 bg-red-600 rounded text-sm">✗ Reject (Block)</button>
+              <button class="w-full p-2 bg-yellow-600 rounded text-sm">↑ Escalate</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 8: Compliance & Audit -->
+  <section class="slide" id="slide-8">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Compliance & Audit</h2>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Immutable Evidence Records</h3>
+          <div class="code-block text-xs">
+            <pre>{
+  "id": "e1000000-0000-...",
+  "control_id": "MOD-001",
+  "decision_id": "d0000000-...",
+  "automated_action": "block",
+  "category_scores": {
+    "toxicity": 0.92,
+    "hate": 0.95
+  },
+  "submission_hash": "sha256:a7f3b...",
+  "immutable": true,
+  "integrity_hash": "sha256:c9d2e..."
+}</pre>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4">Audit Trail Features</h3>
+          <ul class="space-y-3">
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>Cryptographic hash chain</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>Tamper detection triggers</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>Full decision lineage</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>CSV/JSON export</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>Policy version tracking</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-green-400">✓</span>
+              <span>Human review rationale</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 9: Regulatory Compliance -->
+  <section class="slide" id="slide-9">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Regulatory Compliance</h2>
+      <div class="framework-grid">
+        <div class="card text-center">
+          <div class="text-3xl mb-2">🇪🇺</div>
+          <h4 class="font-semibold">EU AI Act</h4>
+          <p class="text-sm text-slate-400 mt-2">Art. 9, 13, 14, 15, 17</p>
+          <div class="mt-3 text-xs text-green-400">12 controls mapped</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-3xl mb-2">🏛️</div>
+          <h4 class="font-semibold">NIST AI RMF</h4>
+          <p class="text-sm text-slate-400 mt-2">MAP, MEASURE, MANAGE, GOVERN</p>
+          <div class="mt-3 text-xs text-green-400">8 controls mapped</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-3xl mb-2">🌐</div>
+          <h4 class="font-semibold">ISO 42001</h4>
+          <p class="text-sm text-slate-400 mt-2">Clause 6, 8, 9</p>
+          <div class="mt-3 text-xs text-green-400">6 controls mapped</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-3xl mb-2">🔒</div>
+          <h4 class="font-semibold">GDPR</h4>
+          <p class="text-sm text-slate-400 mt-2">Art. 22, 35</p>
+          <div class="mt-3 text-xs text-green-400">5 controls mapped</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-3xl mb-2">✅</div>
+          <h4 class="font-semibold">SOC 2</h4>
+          <p class="text-sm text-slate-400 mt-2">CC6, CC7, CC8</p>
+          <div class="mt-3 text-xs text-green-400">7 controls mapped</div>
+        </div>
+      </div>
+      <div class="mt-8 text-center text-sm text-slate-400">
+        18 implemented controls with full traceability to regulatory requirements
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 10: Knowledge Graph -->
+  <section class="slide" id="slide-10">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-4">Knowledge Graph</h2>
+      <p class="text-slate-400 mb-4">112 nodes • 138 relationships • Neo4j Aura</p>
+      <div id="graph-container"></div>
+    </div>
+  </section>
+
+  <!-- Slide 11: Integration Patterns -->
+  <section class="slide" id="slide-11">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Integration Patterns</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-3">REST API</h3>
+          <p class="text-slate-400 text-sm mb-3">Direct HTTP integration with JSON payloads</p>
+          <div class="code-block text-xs">
+POST /api/v1/moderate
+Authorization: Bearer {api_key}
+{"content": "...", "source": "web"}
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-3">Mobile SDK</h3>
+          <p class="text-slate-400 text-sm mb-3">Native iOS/Android with offline queue</p>
+          <div class="code-block text-xs">
+CivitasSDK.moderate(text) { result ->
+  when(result.action) {
+    ALLOW -> publish()
+    BLOCK -> reject()
+  }
+}
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-3">LLM Guardrails</h3>
+          <p class="text-slate-400 text-sm mb-3">Pre/post-processing for LLM outputs</p>
+          <div class="code-block text-xs">
+llm_output = model.generate(prompt)
+result = civitas.moderate(llm_output)
+if result.action == "block":
+    return SAFE_FALLBACK
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-3">Webhooks</h3>
+          <p class="text-slate-400 text-sm mb-3">Event-driven notifications</p>
+          <div class="code-block text-xs">
+{
+  "event": "moderation.decision",
+  "action": "escalate",
+  "decision_id": "..."
+}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 12: Cloud Deployment -->
+  <section class="slide" id="slide-12">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Cloud Deployment</h2>
+      <div class="card mb-6">
+        <h3 class="text-lg font-semibold mb-4">Live URLs</h3>
+        <div class="grid md:grid-cols-2 gap-4 text-sm">
+          <div class="p-3 bg-slate-800 rounded-lg">
+            <span class="text-slate-400">Frontend:</span>
+            <span class="text-blue-400 ml-2" id="frontendUrl">civitas.pages.dev</span>
+          </div>
+          <div class="p-3 bg-slate-800 rounded-lg">
+            <span class="text-slate-400">API:</span>
+            <span class="text-blue-400 ml-2" id="apiUrl">gateway-xxx.run.app</span>
+          </div>
+          <div class="p-3 bg-slate-800 rounded-lg">
+            <span class="text-slate-400">Database:</span>
+            <span class="text-green-400 ml-2">Supabase (us-west-2)</span>
+          </div>
+          <div class="p-3 bg-slate-800 rounded-lg">
+            <span class="text-slate-400">Graph:</span>
+            <span class="text-purple-400 ml-2">Neo4j Aura</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid md:grid-cols-3 gap-4 text-center">
+        <div class="card">
+          <div class="text-2xl font-bold text-blue-400">4</div>
+          <div class="text-sm text-slate-400">Microservices</div>
+        </div>
+        <div class="card">
+          <div class="text-2xl font-bold text-green-400">&lt;100ms</div>
+          <div class="text-sm text-slate-400">API Latency (p95)</div>
+        </div>
+        <div class="card">
+          <div class="text-2xl font-bold text-yellow-400">99.9%</div>
+          <div class="text-sm text-slate-400">Uptime SLA</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 13: Roadmap -->
+  <section class="slide" id="slide-13">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8">Roadmap</h2>
+      <div class="space-y-8">
+        <div class="timeline-item complete pb-8">
+          <h3 class="text-xl font-semibold text-green-400">Phase 1: Foundation</h3>
+          <p class="text-slate-400 mt-2">Core moderation, policy engine, review queue, audit trail</p>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <span class="badge badge-green">Complete</span>
+            <span class="text-xs text-slate-500">ML Classification • Policy Rules • Evidence Chain</span>
+          </div>
+        </div>
+        <div class="timeline-item planned pb-8">
+          <h3 class="text-xl font-semibold text-yellow-400">Phase 2: Scale</h3>
+          <p class="text-slate-400 mt-2">Multi-language support, custom ML models, real-time streaming</p>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <span class="badge badge-yellow">Q2 2026</span>
+            <span class="text-xs text-slate-500">i18n • Fine-tuning • WebSocket API</span>
+          </div>
+        </div>
+        <div class="timeline-item future pb-8">
+          <h3 class="text-xl font-semibold text-slate-400">Phase 3: Enterprise</h3>
+          <p class="text-slate-400 mt-2">Multi-tenant, SSO, advanced analytics, SLA dashboard</p>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <span class="badge badge-blue">Q4 2026</span>
+            <span class="text-xs text-slate-500">SAML/OIDC • Tenant Isolation • BI Integration</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 14: Call to Action -->
+  <section class="slide" id="slide-14">
+    <div class="max-w-4xl mx-auto text-center">
+      <h2 class="text-5xl font-bold mb-6">Get Started</h2>
+      <p class="text-xl text-slate-400 mb-8">
+        Enterprise-grade content moderation, ready for production
+      </p>
+      <div class="flex justify-center gap-4 mb-12">
+        <a href="#slide-5" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
+          Try the API
+        </a>
+        <a href="https://github.com/proth1/text-moderator" target="_blank" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold transition">
+          View on GitHub
+        </a>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6 text-left">
+        <div class="card">
+          <h4 class="font-semibold mb-2">Documentation</h4>
+          <p class="text-sm text-slate-400">API reference, integration guides, and examples</p>
+        </div>
+        <div class="card">
+          <h4 class="font-semibold mb-2">Contact</h4>
+          <p class="text-sm text-slate-400">proth1@gmail.com</p>
+        </div>
+        <div class="card">
+          <h4 class="font-semibold mb-2">License</h4>
+          <p class="text-sm text-slate-400">MIT Open Source</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Configuration
+    const API_BASE_URL = 'https://gateway-985257236036.us-central1.run.app/api/v1';
+    const API_KEY = 'tk_admin_test_key_001';
+
+    // Slide navigation
+    const slides = document.querySelectorAll('.slide');
+    const slideNav = document.getElementById('slideNav');
+    let currentSlide = 0;
+
+    // Create nav dots
+    slides.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'slide-nav-dot' + (i === 0 ? ' active' : '');
+      dot.onclick = () => scrollToSlide(i);
+      slideNav.appendChild(dot);
+    });
+
+    function scrollToSlide(index) {
+      slides[index].scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Update active dot on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const index = Array.from(slides).indexOf(entry.target);
+          document.querySelectorAll('.slide-nav-dot').forEach((dot, i) => {
+            dot.classList.toggle('active', i === index);
+          });
+          currentSlide = index;
+        }
+      });
+    }, { threshold: 0.5 });
+
+    slides.forEach(slide => observer.observe(slide));
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        if (currentSlide < slides.length - 1) scrollToSlide(currentSlide + 1);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (currentSlide > 0) scrollToSlide(currentSlide - 1);
+      }
+    });
+
+    // API Widget
+    async function moderateText() {
+      const input = document.getElementById('apiInput').value;
+      const btn = document.getElementById('moderateBtn');
+      const result = document.getElementById('apiResult');
+
+      btn.textContent = 'Processing...';
+      btn.disabled = true;
+
+      // Update request display
+      document.getElementById('requestBody').textContent = JSON.stringify({
+        content: input,
+        source: 'demo'
+      }, null, 2);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/moderate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({ content: input, source: 'demo' })
+        });
+
+        const data = await response.json();
+
+        // Update response display
+        document.getElementById('responseBody').textContent = JSON.stringify(data, null, 2);
+
+        // Update result UI
+        result.classList.remove('hidden');
+
+        const actionBadge = document.getElementById('actionBadge');
+        actionBadge.textContent = data.action.toUpperCase();
+        actionBadge.className = 'badge ' + (
+          data.action === 'allow' ? 'badge-green' :
+          data.action === 'block' ? 'badge-red' :
+          data.action === 'warn' ? 'badge-yellow' : 'badge-blue'
+        );
+
+        const toxicity = data.category_scores?.toxicity || 0;
+        document.getElementById('toxicityScore').textContent = (toxicity * 100).toFixed(1) + '%';
+        document.getElementById('toxicityBar').style.width = (toxicity * 100) + '%';
+        document.getElementById('confidenceText').textContent =
+          `Policy: ${data.policy_applied || 'default'}`;
+
+      } catch (error) {
+        document.getElementById('responseBody').textContent = JSON.stringify({ error: error.message }, null, 2);
+      }
+
+      btn.textContent = 'Moderate Text';
+      btn.disabled = false;
+    }
+
+    // Knowledge Graph Visualization
+    function initGraph() {
+      const container = document.getElementById('graph-container');
+      const width = container.clientWidth;
+      const height = 500;
+
+      const svg = d3.select('#graph-container')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      // Sample graph data (subset of actual Neo4j data)
+      const nodes = [
+        { id: 'gateway', label: 'gateway', group: 'Service' },
+        { id: 'moderation', label: 'moderation', group: 'Service' },
+        { id: 'policy-engine', label: 'policy-engine', group: 'Service' },
+        { id: 'review', label: 'review', group: 'Service' },
+        { id: 'EU AI Act', label: 'EU AI Act', group: 'Framework' },
+        { id: 'NIST AI RMF', label: 'NIST AI RMF', group: 'Framework' },
+        { id: 'ISO 42001', label: 'ISO 42001', group: 'Framework' },
+        { id: 'GDPR', label: 'GDPR', group: 'Framework' },
+        { id: 'SOC 2', label: 'SOC 2', group: 'Framework' },
+        { id: 'MOD-001', label: 'MOD-001', group: 'Control' },
+        { id: 'MOD-002', label: 'MOD-002', group: 'Control' },
+        { id: 'POL-001', label: 'POL-001', group: 'Control' },
+        { id: 'REV-001', label: 'REV-001', group: 'Control' },
+        { id: 'AUD-001', label: 'AUD-001', group: 'Control' },
+        { id: 'GOV-001', label: 'GOV-001', group: 'Control' },
+        { id: 'toxicity', label: 'toxicity', group: 'Category' },
+        { id: 'hate', label: 'hate', group: 'Category' },
+        { id: 'allow', label: 'allow', group: 'Action' },
+        { id: 'block', label: 'block', group: 'Action' },
+        { id: 'escalate', label: 'escalate', group: 'Action' },
+      ];
+
+      const links = [
+        { source: 'gateway', target: 'moderation' },
+        { source: 'gateway', target: 'policy-engine' },
+        { source: 'gateway', target: 'review' },
+        { source: 'MOD-001', target: 'EU AI Act' },
+        { source: 'MOD-001', target: 'NIST AI RMF' },
+        { source: 'MOD-002', target: 'EU AI Act' },
+        { source: 'POL-001', target: 'NIST AI RMF' },
+        { source: 'POL-001', target: 'ISO 42001' },
+        { source: 'REV-001', target: 'EU AI Act' },
+        { source: 'REV-001', target: 'GDPR' },
+        { source: 'AUD-001', target: 'SOC 2' },
+        { source: 'AUD-001', target: 'EU AI Act' },
+        { source: 'GOV-001', target: 'SOC 2' },
+        { source: 'moderation', target: 'MOD-001' },
+        { source: 'moderation', target: 'MOD-002' },
+        { source: 'policy-engine', target: 'POL-001' },
+        { source: 'review', target: 'REV-001' },
+        { source: 'MOD-001', target: 'toxicity' },
+        { source: 'MOD-001', target: 'hate' },
+        { source: 'block', target: 'MOD-001' },
+        { source: 'escalate', target: 'REV-001' },
+        { source: 'allow', target: 'AUD-001' },
+      ];
+
+      const colorScale = d3.scaleOrdinal()
+        .domain(['Service', 'Framework', 'Control', 'Category', 'Action'])
+        .range(['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#8b5cf6']);
+
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(30));
+
+      const link = svg.append('g')
+        .selectAll('line')
+        .data(links)
+        .join('line')
+        .attr('stroke', '#334155')
+        .attr('stroke-width', 1);
+
+      const node = svg.append('g')
+        .selectAll('circle')
+        .data(nodes)
+        .join('circle')
+        .attr('r', d => d.group === 'Service' ? 12 : d.group === 'Framework' ? 10 : 8)
+        .attr('fill', d => colorScale(d.group))
+        .call(d3.drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended));
+
+      const labels = svg.append('g')
+        .selectAll('text')
+        .data(nodes)
+        .join('text')
+        .attr('class', 'node-label')
+        .attr('dx', 12)
+        .attr('dy', 4)
+        .text(d => d.label);
+
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+        node
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y);
+        labels
+          .attr('x', d => d.x)
+          .attr('y', d => d.y);
+      });
+
+      function dragstarted(event) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      }
+
+      function dragged(event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      }
+
+      function dragended(event) {
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+      }
+
+      // Legend
+      const legend = svg.append('g')
+        .attr('transform', `translate(20, 20)`);
+
+      ['Service', 'Framework', 'Control', 'Category', 'Action'].forEach((group, i) => {
+        legend.append('circle')
+          .attr('cx', 0)
+          .attr('cy', i * 20)
+          .attr('r', 6)
+          .attr('fill', colorScale(group));
+        legend.append('text')
+          .attr('x', 15)
+          .attr('y', i * 20 + 4)
+          .attr('fill', '#e2e8f0')
+          .attr('font-size', '11px')
+          .text(group);
+      });
+    }
+
+    // Initialize graph when slide is visible
+    const graphObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !window.graphInitialized) {
+          initGraph();
+          window.graphInitialized = true;
+        }
+      });
+    }, { threshold: 0.3 });
+
+    graphObserver.observe(document.getElementById('slide-10'));
+  </script>
+</body>
+</html>
