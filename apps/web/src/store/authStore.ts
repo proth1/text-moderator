@@ -10,10 +10,28 @@ interface AuthState {
   checkAuth: () => void;
 }
 
+// Read localStorage synchronously on store creation so
+// isAuthenticated is correct on the very first render.
+function getInitialState() {
+  try {
+    const apiKey = localStorage.getItem("api_key");
+    const userStr = localStorage.getItem("user");
+    if (apiKey && userStr) {
+      const user = JSON.parse(userStr) as User;
+      return { apiKey, user, isAuthenticated: true };
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { apiKey: null, user: null, isAuthenticated: false };
+}
+
+const initial = getInitialState();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  apiKey: null,
-  isAuthenticated: false,
+  user: initial.user,
+  apiKey: initial.apiKey,
+  isAuthenticated: initial.isAuthenticated,
 
   login: (apiKey: string, user: User) => {
     localStorage.setItem("api_key", apiKey);

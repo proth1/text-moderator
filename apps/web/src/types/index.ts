@@ -94,15 +94,19 @@ export interface ReviewAction {
 
 export interface EvidenceRecord {
   id: string;
-  decision_id: string;
-  submission_id: string;
-  action_type: ReviewActionType;
+  control_id: string;
   policy_id?: string;
   policy_version?: number;
-  reviewer_id?: string;
-  rationale?: string;
-  timestamp: string;
-  metadata?: Record<string, any>;
+  decision_id?: string;
+  review_id?: string;
+  model_name?: string;
+  model_version?: string;
+  category_scores?: CategoryScores;
+  automated_action?: string;
+  human_override?: string;
+  submission_hash?: string;
+  immutable: boolean;
+  created_at: string;
 }
 
 export interface User {
@@ -115,7 +119,7 @@ export interface User {
 
 // API Request/Response types
 export interface ModerationRequest {
-  text: string;
+  content: string;
   context?: Record<string, any>;
   user_id?: string;
 }
@@ -169,11 +173,7 @@ export interface ReviewFilters {
 }
 
 export interface EvidenceFilters {
-  from_date?: string;
-  to_date?: string;
-  action_type?: ReviewActionType;
-  policy_id?: string;
-  reviewer_id?: string;
+  control_id?: string;
 }
 
 export interface DashboardStats {

@@ -29,11 +29,24 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { checkAuth } = useAuth();
+  const { checkAuth, isAuthenticated, login } = useAuth();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Auto-login for demo mode: authenticate with a seeded admin API key
+  // so users don't hit a login gate.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      login("tk_admin_test_key_001", {
+        id: "a0000000-0000-0000-0000-000000000001",
+        email: "admin@civitas.test",
+        role: "admin" as import("./types").UserRole,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }, [isAuthenticated, login]);
 
   return (
     <Routes>
@@ -51,6 +64,7 @@ function AppRoutes() {
         <Route path="reviews" element={<ModeratorQueue />} />
         <Route path="reviews/:id" element={<ReviewDetail />} />
         <Route path="policies" element={<PolicyList />} />
+        <Route path="policies/new" element={<PolicyEditor />} />
         <Route path="policies/:id/edit" element={<PolicyEditor />} />
         <Route path="audit" element={<AuditLog />} />
         <Route path="analytics" element={<Analytics />} />

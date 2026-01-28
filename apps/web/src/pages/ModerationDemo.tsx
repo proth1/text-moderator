@@ -66,6 +66,7 @@ export default function ModerationDemo() {
                   Enter text to moderate
                 </label>
                 <Textarea
+                  name="content"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Type your message here..."
@@ -89,7 +90,7 @@ export default function ModerationDemo() {
               </div>
 
               {moderateMutation.isError && (
-                <div className="rounded-md bg-red-50 p-4">
+                <div className="rounded-md bg-red-50 p-4" data-testid="error-message">
                   <p className="text-sm text-red-800">
                     Failed to moderate text. Please try again.
                   </p>
@@ -109,9 +110,9 @@ export default function ModerationDemo() {
                 <p>Submit content to see moderation results</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6" data-testid="moderation-feedback">
                 {/* Action */}
-                <div>
+                <div data-testid="moderation-action">
                   <div className="flex items-center gap-2 mb-2">
                     {getActionIcon(result.action)}
                     <span className="text-sm font-medium text-gray-700">Decision</span>
@@ -140,7 +141,7 @@ export default function ModerationDemo() {
                 </div>
 
                 {/* Category Scores */}
-                <div>
+                <div data-testid="category-scores">
                   <div className="text-sm font-medium text-gray-700 mb-3">Category Scores</div>
                   <div className="space-y-2">
                     {Object.entries(result.category_scores).map(([category, score]) => (

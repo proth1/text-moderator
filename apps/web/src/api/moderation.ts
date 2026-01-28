@@ -1,17 +1,34 @@
 import apiClient from "./client";
-import type { ModerationRequest, ModerationResponse } from "../types";
+import type { ModerationResponse } from "../types";
 
 export async function moderateText(
   text: string,
   context?: Record<string, any>
 ): Promise<ModerationResponse> {
-  const request: ModerationRequest = {
-    text,
+  // Backend expects 'content' field, not 'text'
+  const response = await apiClient.post("/moderate", {
+    content: text,
     context,
-  };
+  });
 
-  const response = await apiClient.post<ModerationResponse>("/moderate", request);
-  return response.data;
+  const data = response.data;
+  const categoryScores = data.category_scores || {};
+
+  // Derive confidence from max category score (backend doesn't return it directly)
+  const scores = Object.values(categoryScores).filter(
+    (v): v is number => typeof v === "number"
+  );
+  const confidence = scores.length > 0 ? Math.max(...scores) : 0;
+
+  return {
+    submission_id: data.submission_id,
+    decision_id: data.decision_id,
+    action: data.action,
+    category_scores: categoryScores,
+    confidence,
+    reasons: data.reasons || [],
+    requires_review: data.requires_review ?? false,
+  };
 }
 
 export async function getModerationHistory(limit = 50) {

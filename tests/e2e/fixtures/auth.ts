@@ -1,24 +1,30 @@
 import { test as base, Page } from '@playwright/test';
 
 /**
- * User credentials for testing
+ * User credentials for testing - matches seed-data.sql
  */
 export const users = {
   admin: {
+    id: 'a0000000-0000-0000-0000-000000000001',
     email: 'admin@civitas.test',
     apiKey: 'tk_admin_test_key_001',
-    role: 'admin'
+    role: 'admin',
+    created_at: '2026-01-01T00:00:00.000Z',
   },
   moderator: {
+    id: 'a0000000-0000-0000-0000-000000000002',
     email: 'moderator@civitas.test',
     apiKey: 'tk_mod_test_key_002',
-    role: 'moderator'
+    role: 'moderator',
+    created_at: '2026-01-01T00:00:00.000Z',
   },
   viewer: {
+    id: 'a0000000-0000-0000-0000-000000000003',
     email: 'viewer@civitas.test',
     apiKey: 'tk_viewer_test_key_003',
-    role: 'viewer'
-  }
+    role: 'viewer',
+    created_at: '2026-01-01T00:00:00.000Z',
+  },
 } as const;
 
 export type UserRole = keyof typeof users;
@@ -33,29 +39,38 @@ type AuthFixtures = {
 };
 
 /**
- * Authenticate a page with user credentials
+ * Authenticate a page by setting localStorage values the app reads on boot.
+ * The app's authStore reads `api_key` and `user` from localStorage.
  */
 async function authenticatePage(page: Page, userRole: UserRole): Promise<void> {
   const user = users[userRole];
 
-  // Set authentication cookie or localStorage
-  await page.context().addCookies([
-    {
-      name: 'auth_token',
-      value: user.apiKey,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      secure: false,
-      sameSite: 'Lax'
-    }
-  ]);
+  // Navigate to origin so we can set localStorage (needs same origin)
+  await page.goto('/login');
+  await page.waitForLoadState('domcontentloaded');
 
-  // Alternatively, set localStorage if the app uses that
+  // Set localStorage with the format the app expects
+  await page.evaluate(
+    ({ apiKey, userData }) => {
+      localStorage.setItem('api_key', apiKey);
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: userData.id,
+          email: userData.email,
+          role: userData.role,
+          created_at: userData.created_at,
+        })
+      );
+    },
+    { apiKey: user.apiKey, userData: user }
+  );
+
+  // Navigate to dashboard - checkAuth will pick up localStorage values
   await page.goto('/');
-  await page.evaluate((userData) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-  }, user);
+
+  // Wait for the sidebar to render (confirms we're authenticated and in MainLayout)
+  await page.waitForSelector('nav', { timeout: 10000 });
 }
 
 /**
@@ -84,7 +99,7 @@ export const test = base.extend<AuthFixtures>({
     await authenticatePage(page, 'viewer');
     await use(page);
     await context.close();
-  }
+  },
 });
 
 export { expect } from '@playwright/test';
