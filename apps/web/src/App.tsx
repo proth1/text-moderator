@@ -35,10 +35,9 @@ function AppRoutes() {
     checkAuth();
   }, [checkAuth]);
 
-  // Auto-login for demo mode: authenticate with a seeded admin API key
-  // so users don't hit a login gate.
+  // Auto-login for demo mode only — gated behind VITE_DEMO_MODE env var.
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (import.meta.env.VITE_DEMO_MODE === "true" && !isAuthenticated) {
       login("tk_admin_test_key_001", {
         id: "a0000000-0000-0000-0000-000000000001",
         email: "admin@civitas.test",

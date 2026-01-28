@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: civitas
       POSTGRES_USER: civitas
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-civitas_dev}
     ports:
       - "5433:5432"
     volumes:
@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://civitas:${DB_PASSWORD}@postgres:5432/civitas?sslmode=disable
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
 
   seed:
     image: postgres:16-alpine
@@ -53,7 +53,7 @@ services:
     volumes:
       - ./tests/fixtures/seed-data.sql:/seed-data.sql
     environment:
-      PGPASSWORD: ${DB_PASSWORD}
+      PGPASSWORD: ${DB_PASSWORD:-civitas_dev}
     entrypoint: ["sh", "-c", "psql -h postgres -U civitas -d civitas -f /seed-data.sql || true"]
 
   gateway:
@@ -70,7 +70,7 @@ services:
       seed:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://civitas:${DB_PASSWORD}@postgres:5432/civitas?sslmode=disable
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
       REDIS_URL: redis://redis:6379
       MODERATION_PORT: "8081"
       POLICY_ENGINE_PORT: "8082"
@@ -99,7 +99,7 @@ services:
       seed:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://civitas:${DB_PASSWORD}@postgres:5432/civitas?sslmode=disable
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
       REDIS_URL: redis://redis:6379
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-test-key}
       HUGGINGFACE_MODEL_URL: https://router.huggingface.co/hf-inference/models/s-nlp/roberta_toxicity_classifier
@@ -129,7 +129,7 @@ services:
       seed:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://civitas:${DB_PASSWORD}@postgres:5432/civitas?sslmode=disable
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
       REDIS_URL: redis://redis:6379
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-not-used-by-policy}
       POLICY_ENGINE_PORT: "8082"
@@ -158,7 +158,7 @@ services:
       seed:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://civitas:${DB_PASSWORD}@postgres:5432/civitas?sslmode=disable
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
       REDIS_URL: redis://redis:6379
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-not-used-by-review}
       REVIEW_PORT: "8083"
@@ -186,6 +186,7 @@ services:
         condition: service_healthy
     environment:
       VITE_API_URL: http://localhost:9080/api/v1
+      VITE_DEMO_MODE: "true"
     restart: unless-stopped
     mem_limit: 512m
 
