@@ -91,7 +91,7 @@ services:
       DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
       REDIS_URL: redis://redis:6379
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-test-key}
-      HUGGINGFACE_MODEL_URL: https://api-inference.huggingface.co/models/s-nlp/roberta_toxicity_classifier
+      HUGGINGFACE_MODEL_URL: https://router.huggingface.co/models/s-nlp/roberta_toxicity_classifier
       MODERATION_PORT: "8081"
       GATEWAY_PORT: "8080"
       POLICY_ENGINE_PORT: "8082"
@@ -176,7 +176,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:9080/api/v1
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 512m
 
 volumes:
   pgdata:

@@ -60,7 +60,7 @@ func Load() (*Config, error) {
 
 		// HuggingFace defaults
 		HuggingFaceAPIKey:   getEnv("HUGGINGFACE_API_KEY", ""),
-		HuggingFaceModelURL: getEnv("HUGGINGFACE_MODEL_URL", "https://api-inference.huggingface.co/models/unitary/toxic-bert"),
+		HuggingFaceModelURL: getEnv("HUGGINGFACE_MODEL_URL", "https://router.huggingface.co/models/s-nlp/roberta_toxicity_classifier"),
 		HuggingFaceTimeout:  getEnvAsDuration("HUGGINGFACE_TIMEOUT", 30*time.Second),
 
 		// Service ports
