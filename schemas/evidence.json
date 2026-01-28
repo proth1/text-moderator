@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evidence Record",
+  "type": "object",
+  "required": ["control_id", "immutable", "timestamp"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "control_id": {
+      "type": "string",
+      "pattern": "^(MOD|POL|GOV|AUD|SEC|OBS|ANL)-\\d{3}$"
+    },
+    "policy_id": { "type": "string", "format": "uuid" },
+    "policy_version": { "type": "integer" },
+    "decision_id": { "type": "string", "format": "uuid" },
+    "review_id": { "type": "string", "format": "uuid" },
+    "model_name": { "type": "string" },
+    "model_version": { "type": "string" },
+    "category_scores": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "automated_action": { "type": "string", "enum": ["allow", "warn", "block", "escalate"] },
+    "human_override": { "type": "string", "enum": ["approve", "reject", "edit", "escalate"] },
+    "submission_hash": { "type": "string" },
+    "immutable": { "type": "boolean", "const": true },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

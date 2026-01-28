@@ -1,0 +1,246 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/proth1/text-moderator/internal/config"
+	"github.com/proth1/text-moderator/internal/middleware"
+	"github.com/proth1/text-moderator/internal/models"
+	"go.uber.org/zap"
+)
+
+// maxRequestBodySize limits request body to 1MB to prevent abuse
+const maxRequestBodySize = 1 << 20 // 1MB
+
+// allowedProxyHeaders defines which headers are forwarded to internal services
+var allowedProxyHeaders = map[string]bool{
+	"content-type":     true,
+	"accept":           true,
+	"x-correlation-id": true,
+	"x-api-key":        true,
+	"x-request-id":     true,
+}
+
+// API Gateway routes requests to backend services
+
+func main() {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create logger
+	logger, err := cfg.NewLogger()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	logger.Info("starting gateway service",
+		zap.String("version", cfg.Version),
+		zap.String("environment", cfg.Environment),
+	)
+
+	// Create HTTP server
+	router := setupRouter(cfg, logger)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.GatewayPort),
+		Handler: router,
+	}
+
+	// Start server
+	go func() {
+		logger.Info("gateway service listening", zap.String("port", cfg.GatewayPort))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("failed to start server", zap.Error(err))
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("shutting down gateway service")
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Info("gateway service stopped")
+}
+
+func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.LoggingMiddleware(logger))
+	router.Use(middleware.CORSMiddleware(middleware.DefaultCORSConfig()))
+
+	// Request body size limit
+	router.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBodySize)
+		c.Next()
+	})
+
+	// Health check (no auth required)
+	router.GET("/health", healthHandler())
+
+	// API v1 routes with API key authentication
+	v1 := router.Group("/api/v1")
+	v1.Use(middleware.AuthMiddleware(nil, logger)) // nil db = header-only validation for gateway proxy
+	{
+		// Moderation service proxy
+		v1.POST("/moderate", proxyHandler(cfg, logger, "moderation", "/moderate"))
+
+		// Policy engine service proxy
+		v1.GET("/policies", proxyHandler(cfg, logger, "policy-engine", "/policies"))
+		v1.POST("/policies", proxyHandler(cfg, logger, "policy-engine", "/policies"))
+		v1.GET("/policies/:id", proxyHandler(cfg, logger, "policy-engine", "/policies/:id"))
+		v1.POST("/policies/:id/evaluate", proxyHandler(cfg, logger, "policy-engine", "/policies/:id/evaluate"))
+
+		// Review service proxy
+		v1.GET("/reviews", proxyHandler(cfg, logger, "review", "/reviews"))
+		v1.GET("/reviews/:id", proxyHandler(cfg, logger, "review", "/reviews/:id"))
+		v1.POST("/reviews/:id/action", proxyHandler(cfg, logger, "review", "/reviews/:id/action"))
+		v1.GET("/evidence", proxyHandler(cfg, logger, "review", "/evidence"))
+		v1.GET("/evidence/export", proxyHandler(cfg, logger, "review", "/evidence/export"))
+	}
+
+	return router
+}
+
+func healthHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, models.HealthResponse{
+			Status:  "healthy",
+			Service: "gateway",
+			Version: "0.1.0",
+		})
+	}
+}
+
+func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Determine target service URL
+		var targetURL string
+		switch service {
+		case "moderation":
+			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.ModerationHost, cfg.ModerationPort, path)
+		case "policy-engine":
+			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.PolicyEngineHost, cfg.PolicyEnginePort, path)
+		case "review":
+			targetURL = fmt.Sprintf("http://%s:%s%s", cfg.ReviewHost, cfg.ReviewPort, path)
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "unknown service"})
+			return
+		}
+
+		// Replace path parameters
+		for _, param := range c.Params {
+			targetURL = replacePathParam(targetURL, param.Key, param.Value)
+		}
+
+		// Add query parameters
+		if c.Request.URL.RawQuery != "" {
+			targetURL += "?" + c.Request.URL.RawQuery
+		}
+
+		// Read request body
+		var bodyBytes []byte
+		if c.Request.Body != nil {
+			bodyBytes, _ = io.ReadAll(c.Request.Body)
+		}
+
+		// Create proxy request
+		proxyReq, err := http.NewRequestWithContext(
+			c.Request.Context(),
+			c.Request.Method,
+			targetURL,
+			bytes.NewReader(bodyBytes),
+		)
+		if err != nil {
+			logger.Error("failed to create proxy request",
+				zap.Error(err),
+				zap.String("target_url", targetURL),
+			)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create proxy request"})
+			return
+		}
+
+		// Copy only allowed headers to prevent header injection
+		for key, values := range c.Request.Header {
+			if allowedProxyHeaders[strings.ToLower(key)] {
+				for _, value := range values {
+					proxyReq.Header.Add(key, value)
+				}
+			}
+		}
+
+		// Send request
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(proxyReq)
+		if err != nil {
+			logger.Error("proxy request failed",
+				zap.Error(err),
+				zap.String("service", service),
+				zap.String("target_url", targetURL),
+			)
+			c.JSON(http.StatusBadGateway, gin.H{"error": "service unavailable"})
+			return
+		}
+		defer resp.Body.Close()
+
+		// Read response body
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			logger.Error("failed to read proxy response",
+				zap.Error(err),
+				zap.String("service", service),
+			)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read response"})
+			return
+		}
+
+		// Copy response headers
+		for key, values := range resp.Header {
+			for _, value := range values {
+				c.Header(key, value)
+			}
+		}
+
+		// Send response
+		c.Data(resp.StatusCode, resp.Header.Get("Content-Type"), respBody)
+
+		logger.Debug("proxied request",
+			zap.String("service", service),
+			zap.String("method", c.Request.Method),
+			zap.String("path", path),
+			zap.Int("status", resp.StatusCode),
+		)
+	}
+}
+
+func replacePathParam(url, key, value string) string {
+	return strings.Replace(url, ":"+key, value, 1)
+}

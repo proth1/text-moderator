@@ -1,0 +1,188 @@
+# Control Registry for Civitas AI Text Moderator
+# Maps controls to their test implementations
+
+controls:
+  - id: MOD-001
+    name: Automated Text Classification
+    description: All text submissions are classified by ML model with evidence generation
+    type: automated
+    criticality: high
+    tests:
+      - TestMOD001_AutomatedClassification
+    evidence_control: AUD-001
+    metrics:
+      - classification_accuracy
+      - processing_latency
+      - evidence_generation_rate
+
+  - id: MOD-002
+    name: Real-Time User Feedback
+    description: Users receive immediate feedback on content moderation decisions
+    type: automated
+    criticality: high
+    tests:
+      - TestMOD002_RealtimeFeedback
+    evidence_control: AUD-001
+    metrics:
+      - response_time_p95
+      - cache_hit_rate
+      - user_satisfaction
+
+  - id: POL-001
+    name: Threshold-Based Moderation Policy
+    description: Policy engine evaluates scores against configurable thresholds
+    type: policy
+    criticality: high
+    tests:
+      - TestPOL001_ThresholdPolicy
+    evidence_control: AUD-001
+    metrics:
+      - policy_evaluation_accuracy
+      - threshold_breach_rate
+      - false_positive_rate
+
+  - id: POL-002
+    name: Policy Versioning
+    description: Policies are versioned and historical versions are maintained
+    type: policy
+    criticality: medium
+    tests:
+      - TestPOL002_PolicyVersioning
+    evidence_control: AUD-001
+    metrics:
+      - active_policy_versions
+      - version_transition_success_rate
+
+  - id: POL-003
+    name: Regional Policy Resolution
+    description: Correct policy is selected based on regional and contextual scope
+    type: policy
+    criticality: medium
+    tests:
+      - TestPOL003_RegionalResolution
+    evidence_control: AUD-001
+    metrics:
+      - policy_match_accuracy
+      - regional_distribution
+
+  - id: GOV-001
+    name: Role-Based Access Control
+    description: User permissions are enforced based on roles (admin, moderator, viewer)
+    type: governance
+    criticality: high
+    tests:
+      - TestGOV001_RBAC
+    evidence_control: AUD-002
+    metrics:
+      - unauthorized_access_attempts
+      - role_distribution
+
+  - id: GOV-002
+    name: Human-in-the-Loop Review
+    description: Human moderators can review and override automated decisions
+    type: compensating
+    criticality: high
+    tests:
+      - TestGOV002_HumanReview
+    evidence_control: AUD-002
+    metrics:
+      - review_queue_size
+      - average_review_time
+      - override_rate
+
+  - id: GOV-003
+    name: Audit Trail Completeness
+    description: All moderation actions generate complete audit trails
+    type: governance
+    criticality: high
+    tests:
+      - TestGOV003_AuditTrail
+    evidence_control: AUD-002
+    metrics:
+      - audit_record_completeness
+      - missing_evidence_rate
+
+  - id: AUD-001
+    name: Immutable Evidence Storage
+    description: Evidence records cannot be modified or deleted after creation
+    type: audit
+    criticality: critical
+    tests:
+      - TestAUD001_ImmutableEvidence
+    metrics:
+      - evidence_integrity_violations
+      - tamper_attempts
+
+  - id: AUD-002
+    name: Evidence Chain of Custody
+    description: Evidence maintains links between related records for complete traceability
+    type: audit
+    criticality: high
+    tests:
+      - TestAUD002_EvidenceChain
+    metrics:
+      - chain_completeness_rate
+      - orphaned_evidence_count
+
+  - id: SEC-001
+    name: Content Hash Privacy
+    description: Original content is hashed and encrypted, not stored in plaintext
+    type: security
+    criticality: high
+    tests:
+      - TestSEC001_ContentPrivacy
+    metrics:
+      - plaintext_leakage_incidents
+      - encryption_success_rate
+
+  - id: SEC-002
+    name: API Key Authentication
+    description: All API requests are authenticated with valid API keys
+    type: security
+    criticality: high
+    tests:
+      - TestSEC002_APIAuthentication
+    metrics:
+      - unauthenticated_request_rate
+      - invalid_key_attempts
+
+compliance_mappings:
+  - control: MOD-001
+    frameworks:
+      - GDPR: "Article 22 (Automated Decision Making)"
+      - SOC2: "CC7.2 (System Monitoring)"
+
+  - control: GOV-002
+    frameworks:
+      - GDPR: "Article 22 (Right to Human Review)"
+      - SOC2: "CC3.1 (COSO Principle 1)"
+
+  - control: AUD-001
+    frameworks:
+      - SOC2: "CC7.1 (Data Integrity)"
+      - GDPR: "Article 5(1)(f) (Integrity and Confidentiality)"
+
+  - control: SEC-001
+    frameworks:
+      - GDPR: "Article 32 (Security of Processing)"
+      - SOC2: "CC6.1 (Logical and Physical Access)"
+
+test_coverage_requirements:
+  minimum_coverage: 80
+  critical_control_coverage: 100
+  automated_test_ratio: 0.9
+
+monitoring:
+  enabled: true
+  dashboards:
+    - name: Control Health Dashboard
+      metrics:
+        - control_test_pass_rate
+        - control_violation_count
+        - evidence_generation_rate
+
+    - name: Compliance Dashboard
+      metrics:
+        - framework_compliance_score
+        - audit_readiness_score
+        - policy_adherence_rate

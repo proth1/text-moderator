@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS evidence_no_delete ON evidence_records;
+DROP TRIGGER IF EXISTS evidence_no_update ON evidence_records;
+DROP FUNCTION IF EXISTS prevent_evidence_modification();
+DROP INDEX IF EXISTS idx_evidence_hash;
+DROP INDEX IF EXISTS idx_evidence_created;
+DROP INDEX IF EXISTS idx_evidence_review;
+DROP INDEX IF EXISTS idx_evidence_decision;
+DROP INDEX IF EXISTS idx_evidence_policy;
+DROP INDEX IF EXISTS idx_evidence_control;
+DROP TABLE IF EXISTS evidence_records;

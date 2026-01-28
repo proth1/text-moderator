@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Moderation Policy",
+  "type": "object",
+  "required": ["name", "version", "thresholds", "actions", "status"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "version": { "type": "integer", "minimum": 1 },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "toxicity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "hate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "harassment": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sexual_content": { "type": "number", "minimum": 0, "maximum": 1 },
+        "violence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "profanity": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["allow", "warn", "block", "escalate"]
+      }
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "region": { "type": "string" },
+        "content_type": { "type": "string" },
+        "age_group": { "type": "string" }
+      }
+    },
+    "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+    "effective_date": { "type": "string", "format": "date-time" }
+  }
+}

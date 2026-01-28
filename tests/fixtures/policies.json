@@ -1,0 +1,68 @@
+{
+  "standard_policy": {
+    "name": "Standard Community Guidelines",
+    "version": 1,
+    "thresholds": {
+      "toxicity": 0.8,
+      "hate": 0.7,
+      "harassment": 0.75,
+      "sexual_content": 0.8,
+      "violence": 0.85,
+      "profanity": 0.9
+    },
+    "actions": {
+      "toxicity": "block",
+      "hate": "block",
+      "harassment": "warn",
+      "sexual_content": "block",
+      "violence": "block",
+      "profanity": "warn"
+    },
+    "scope": {"region": "global", "content_type": "user_generated"},
+    "status": "published"
+  },
+  "youth_policy": {
+    "name": "Youth Safe Mode",
+    "version": 1,
+    "thresholds": {
+      "toxicity": 0.5,
+      "hate": 0.4,
+      "harassment": 0.5,
+      "sexual_content": 0.3,
+      "violence": 0.4,
+      "profanity": 0.6
+    },
+    "actions": {
+      "toxicity": "block",
+      "hate": "block",
+      "harassment": "block",
+      "sexual_content": "block",
+      "violence": "block",
+      "profanity": "warn"
+    },
+    "scope": {"region": "global", "content_type": "youth"},
+    "status": "published"
+  },
+  "relaxed_forum_policy": {
+    "name": "Relaxed Forum Policy",
+    "version": 1,
+    "thresholds": {
+      "toxicity": 0.95,
+      "hate": 0.85,
+      "harassment": 0.9,
+      "sexual_content": 0.9,
+      "violence": 0.95,
+      "profanity": 0.99
+    },
+    "actions": {
+      "toxicity": "warn",
+      "hate": "block",
+      "harassment": "warn",
+      "sexual_content": "warn",
+      "violence": "warn",
+      "profanity": "allow"
+    },
+    "scope": {"region": "US", "content_type": "forum"},
+    "status": "draft"
+  }
+}

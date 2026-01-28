@@ -1,0 +1,67 @@
+{
+  "safe_text": {
+    "input": "Hello, this is a friendly message!",
+    "response": [[
+      {"label": "toxic", "score": 0.05},
+      {"label": "severe_toxic", "score": 0.01},
+      {"label": "obscene", "score": 0.02},
+      {"label": "threat", "score": 0.01},
+      {"label": "insult", "score": 0.03},
+      {"label": "identity_hate", "score": 0.02}
+    ]]
+  },
+  "toxic_text": {
+    "input": "You are absolutely terrible and worthless",
+    "response": [[
+      {"label": "toxic", "score": 0.92},
+      {"label": "severe_toxic", "score": 0.45},
+      {"label": "obscene", "score": 0.55},
+      {"label": "threat", "score": 0.08},
+      {"label": "insult", "score": 0.88},
+      {"label": "identity_hate", "score": 0.15}
+    ]]
+  },
+  "hate_speech": {
+    "input": "Hateful content targeting a group",
+    "response": [[
+      {"label": "toxic", "score": 0.95},
+      {"label": "severe_toxic", "score": 0.82},
+      {"label": "obscene", "score": 0.4},
+      {"label": "threat", "score": 0.35},
+      {"label": "insult", "score": 0.78},
+      {"label": "identity_hate", "score": 0.95}
+    ]]
+  },
+  "mild_profanity": {
+    "input": "This damn thing doesn't work at all",
+    "response": [[
+      {"label": "toxic", "score": 0.45},
+      {"label": "severe_toxic", "score": 0.05},
+      {"label": "obscene", "score": 0.55},
+      {"label": "threat", "score": 0.02},
+      {"label": "insult", "score": 0.25},
+      {"label": "identity_hate", "score": 0.01}
+    ]]
+  },
+  "borderline": {
+    "input": "I strongly disagree with your opinion and think it's misguided",
+    "response": [[
+      {"label": "toxic", "score": 0.35},
+      {"label": "severe_toxic", "score": 0.05},
+      {"label": "obscene", "score": 0.08},
+      {"label": "threat", "score": 0.02},
+      {"label": "insult", "score": 0.3},
+      {"label": "identity_hate", "score": 0.03}
+    ]]
+  },
+  "api_timeout": {
+    "input": "any text",
+    "error": "timeout",
+    "status": 504
+  },
+  "api_rate_limit": {
+    "input": "any text",
+    "error": "rate_limit_exceeded",
+    "status": 429
+  }
+}

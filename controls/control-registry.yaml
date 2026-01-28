@@ -1,0 +1,252 @@
+controls:
+  - id: MOD-001
+    name: Automated Text Classification
+    type: automated
+    description: Classifies submitted text using an approved moderation model
+    framework_refs:
+      - "NIST AI RMF – MAP"
+    evidence: AUD-001
+    implementation:
+      service: moderation
+      function: moderateHandler
+      file: services/moderation/main.go
+
+  - id: MOD-002
+    name: Real-Time User Feedback Enforcement
+    type: automated
+    description: Provides inline feedback to users based on moderation results
+    framework_refs:
+      - "NIST AI RMF – MAP"
+    evidence: AUD-001
+    implementation:
+      service: web
+      component: ModerationDemo
+      file: apps/web/src/pages/ModerationDemo.tsx
+
+  - id: MOD-003
+    name: Moderation Request Pipeline
+    type: automated
+    description: End-to-end pipeline from text submission to moderation decision
+    framework_refs:
+      - "NIST AI RMF – MAP"
+    evidence: AUD-001
+    implementation:
+      service: moderation
+      function: moderateHandler
+      file: services/moderation/main.go
+
+  - id: MOD-004
+    name: Latency Optimization and Caching
+    type: automated
+    description: Redis-based caching of moderation results by content hash
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: AUD-001
+    implementation:
+      service: moderation
+      function: tbd
+      file: tbd
+
+  - id: POL-001
+    name: Threshold-Based Moderation Policy
+    type: policy
+    description: Maps model scores to enforcement actions using configurable thresholds
+    framework_refs:
+      - "ISO/IEC 42001 – Clause 8"
+    evidence: AUD-001
+    implementation:
+      service: policy-engine
+      function: EvaluateScores
+      file: services/policy-engine/engine/evaluator.go
+
+  - id: POL-002
+    name: Policy Versioning and Rollback
+    type: policy
+    description: Supports versioned policies with rollback capability
+    framework_refs:
+      - "ISO/IEC 42001 – Clause 8"
+    evidence: AUD-001
+    implementation:
+      service: policy-engine
+      function: tbd
+      file: tbd
+
+  - id: POL-003
+    name: Regional Policy Resolution
+    type: policy
+    description: Resolves correct policy based on region and context metadata
+    framework_refs:
+      - "ISO/IEC 42001 – Clause 8"
+    evidence: AUD-001
+    implementation:
+      service: policy-engine
+      function: resolvePolicy
+      file: services/policy-engine/engine/resolver.go
+
+  - id: GOV-001
+    name: Role-Based Access Control
+    type: governance
+    description: Enforces RBAC with admin, moderator, and viewer roles
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-001
+    implementation:
+      service: gateway
+      function: AuthMiddleware
+      file: internal/middleware/auth.go
+
+  - id: GOV-002
+    name: Human-in-the-Loop Review
+    type: compensating
+    description: Requires moderator approval for escalated content
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-002
+    implementation:
+      service: review
+      function: reviewActionHandler
+      file: services/review/main.go
+
+  - id: GOV-003
+    name: Separation of Duties
+    type: governance
+    description: Prevents same user from both moderating and reviewing content
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-002
+    implementation:
+      service: review
+      function: tbd
+      file: tbd
+
+  - id: GOV-004
+    name: Policy Management UI
+    type: governance
+    description: Admin interface for creating and managing moderation policies
+    framework_refs:
+      - "ISO/IEC 42001 – Clause 8"
+    evidence: AUD-001
+    implementation:
+      service: web
+      component: PolicyEditor
+      file: apps/web/src/pages/PolicyEditor.tsx
+
+  - id: AUD-001
+    name: Immutable Evidence Storage
+    type: audit
+    description: Stores append-only moderation evidence that cannot be altered
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: self
+    implementation:
+      service: evidence
+      function: writeEvidence
+      file: internal/evidence/writer.go
+
+  - id: AUD-002
+    name: Human Review Evidence
+    type: audit
+    description: Records human review actions as immutable evidence
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: self
+    implementation:
+      service: evidence
+      function: RecordReviewAction
+      file: internal/evidence/writer.go
+
+  - id: AUD-003
+    name: Audit Log Viewer
+    type: audit
+    description: Admin interface for searching and viewing audit evidence
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: self
+    implementation:
+      service: web
+      component: AuditLog
+      file: apps/web/src/pages/AuditLog.tsx
+
+  - id: SEC-001
+    name: TLS for Data in Transit
+    type: security
+    description: Encrypts all data in transit using TLS
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-001
+    implementation:
+      service: gateway
+      function: tbd
+      file: tbd
+
+  - id: SEC-002
+    name: API Key and OAuth Authentication
+    type: security
+    description: Authenticates API requests using API keys or OAuth tokens
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-001
+    implementation:
+      service: gateway
+      function: AuthMiddleware
+      file: internal/middleware/auth.go
+
+  - id: SEC-003
+    name: Data Retention Controls
+    type: security
+    description: Enforces data retention policies for submissions and evidence
+    framework_refs:
+      - "NIST AI RMF – MANAGE"
+    evidence: AUD-001
+    implementation:
+      service: tbd
+      function: tbd
+      file: tbd
+
+  - id: OBS-001
+    name: Observability
+    type: operational
+    description: Prometheus metrics, structured logging, and distributed tracing
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: self
+    implementation:
+      service: all
+      function: tbd
+      file: tbd
+
+  - id: ANL-001
+    name: Moderation Analytics Dashboard
+    type: analytics
+    description: Real-time analytics for moderation volume, actions, and trends
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: AUD-001
+    implementation:
+      service: web
+      component: Analytics
+      file: apps/web/src/pages/Analytics.tsx
+
+  - id: ANL-002
+    name: Model Performance Metrics
+    type: analytics
+    description: Tracks model accuracy, false positive/negative rates
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: AUD-001
+    implementation:
+      service: tbd
+      function: tbd
+      file: tbd
+
+  - id: ANL-003
+    name: Policy Effectiveness Analytics
+    type: analytics
+    description: Measures policy effectiveness by tracking override rates and escalations
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: AUD-001
+    implementation:
+      service: tbd
+      function: tbd
+      file: tbd

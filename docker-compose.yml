@@ -1,0 +1,183 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: civitas
+      POSTGRES_USER: civitas
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-civitas_dev}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civitas -d civitas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 512m
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 256m
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "9080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      MODERATION_PORT: "8081"
+      POLICY_ENGINE_PORT: "8082"
+      REVIEW_PORT: "8083"
+      GATEWAY_PORT: "8080"
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-not-used-by-gateway}
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    mem_limit: 256m
+
+  moderation:
+    build:
+      context: .
+      dockerfile: services/moderation/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-test-key}
+      HUGGINGFACE_MODEL_URL: https://api-inference.huggingface.co/models/s-nlp/roberta_toxicity_classifier
+      MODERATION_PORT: "8081"
+      GATEWAY_PORT: "8080"
+      POLICY_ENGINE_PORT: "8082"
+      REVIEW_PORT: "8083"
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    mem_limit: 512m
+
+  policy-engine:
+    build:
+      context: .
+      dockerfile: services/policy-engine/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-not-used-by-policy}
+      POLICY_ENGINE_PORT: "8082"
+      GATEWAY_PORT: "8080"
+      MODERATION_PORT: "8081"
+      REVIEW_PORT: "8083"
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    mem_limit: 256m
+
+  review:
+    build:
+      context: .
+      dockerfile: services/review/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://civitas:${DB_PASSWORD:-civitas_dev}@postgres:5432/civitas?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-not-used-by-review}
+      REVIEW_PORT: "8083"
+      GATEWAY_PORT: "8080"
+      MODERATION_PORT: "8081"
+      POLICY_ENGINE_PORT: "8082"
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8083/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    mem_limit: 256m
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3000"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: http://localhost:9080/api/v1
+    restart: unless-stopped
+    mem_limit: 256m
+
+volumes:
+  pgdata:
+  redisdata:
