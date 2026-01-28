@@ -59,16 +59,17 @@ export default function PolicyList() {
               {policies.map((policy) => (
                 <div
                   key={policy.id}
+                  data-testid="policy-item"
                   className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{policy.name}</h3>
-                        <Badge variant={getStatusVariant(policy.status)}>
+                        <h3 className="text-lg font-semibold text-gray-900" data-testid="policy-name">{policy.name}</h3>
+                        <Badge variant={getStatusVariant(policy.status)} data-testid="policy-status">
                           {policy.status.toUpperCase()}
                         </Badge>
-                        <span className="text-sm text-gray-500">v{policy.version}</span>
+                        <span className="text-sm text-gray-500" data-testid="policy-version">v{policy.version}</span>
                       </div>
 
                       {policy.description && (

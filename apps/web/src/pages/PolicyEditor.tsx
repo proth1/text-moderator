@@ -22,9 +22,9 @@ const CATEGORIES = [
 export default function PolicyEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isNew = id === "new";
+  const isNew = !id;
 
-  const { data: existingPolicy } = usePolicy(id!);
+  const { data: existingPolicy } = usePolicy(id || "");
   const createPolicy = useCreatePolicy();
   const updatePolicy = useUpdatePolicy();
   const publishPolicy = usePublishPolicy();

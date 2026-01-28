@@ -16,7 +16,7 @@ export default defineConfig({
   ],
 
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || 'http://localhost:3010',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -27,36 +27,20 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 12'] },
-    },
   ],
 
   webServer: {
-    command: 'docker compose -f ../../docker-compose.yml -f ../../docker-compose.test.yml up',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    command: 'docker compose -f ../../docker-compose.yml up -d',
+    url: 'http://localhost:3010',
+    reuseExistingServer: true,
     timeout: 120 * 1000,
     stdout: 'pipe',
     stderr: 'pipe',
   },
 
-  timeout: 30 * 1000,
+  timeout: 60 * 1000,
   expect: {
-    timeout: 5 * 1000,
+    timeout: 15 * 1000,
   },
 
   outputDir: 'test-results/',

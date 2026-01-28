@@ -58,9 +58,9 @@ INSERT INTO review_actions (id, decision_id, reviewer_id, action, rationale, cre
 -- Test Evidence Records
 -- Control: AUD-001 (Immutable evidence generation)
 INSERT INTO evidence_records (id, control_id, policy_id, policy_version, decision_id, model_name, model_version, category_scores, automated_action, submission_hash, immutable, created_at) VALUES
-('g0000000-0000-0000-0000-000000000001', 'MOD-001', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000001', 'hf-friendly-text-moderator', '2025-11',
+('e1000000-0000-0000-0000-000000000001', 'MOD-001', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000001', 'hf-friendly-text-moderator', '2025-11',
  '{"toxicity": 0.05, "hate": 0.02}'::jsonb, 'allow', 'hash_safe_001', true, NOW()),
-('g0000000-0000-0000-0000-000000000002', 'MOD-001', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000003', 'hf-friendly-text-moderator', '2025-11',
+('e1000000-0000-0000-0000-000000000002', 'MOD-001', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000003', 'hf-friendly-text-moderator', '2025-11',
  '{"toxicity": 0.92, "hate": 0.95}'::jsonb, 'block', 'hash_hate_001', true, NOW()),
-('g0000000-0000-0000-0000-000000000003', 'GOV-002', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000003', 'hf-friendly-text-moderator', '2025-11',
+('e1000000-0000-0000-0000-000000000003', 'GOV-002', 'b0000000-0000-0000-0000-000000000001', 1, 'd0000000-0000-0000-0000-000000000003', 'hf-friendly-text-moderator', '2025-11',
  '{"toxicity": 0.92, "hate": 0.95}'::jsonb, 'block', 'hash_hate_001', true, NOW());
