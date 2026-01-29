@@ -7,7 +7,7 @@ import Textarea from "../components/ui/Textarea";
 import { useReviewDetail, useSubmitReviewAction } from "../hooks/useReviews";
 import { ReviewActionType } from "../types";
 import { formatDate, formatPercentage } from "../lib/utils";
-import { ArrowLeft, FileText, Brain, Gavel, History, CheckCircle, XCircle, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, FileText, Brain, Gavel, History, CheckCircle, XCircle, ArrowUpRight } from "lucide-react";
 
 export default function ReviewDetail() {
   const { id } = useParams<{ id: string }>();
