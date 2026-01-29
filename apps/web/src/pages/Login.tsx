@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { UserRole } from "../types";
 
 export default function Login() {
-  const [apiKey, setApiKey] = useState("demo-api-key");
+  const [apiKey, setApiKey] = useState("tk_admin_test_key_001");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
@@ -34,11 +34,21 @@ export default function Login() {
         return;
       }
 
-      // Mock user object
+      // User object based on API key
+      const usersByApiKey: Record<string, { id: string; email: string; role: UserRole }> = {
+        "tk_admin_test_key_001": { id: "a0000000-0000-0000-0000-000000000001", email: "admin@civitas.test", role: UserRole.ADMIN },
+        "tk_mod_test_key_002": { id: "a0000000-0000-0000-0000-000000000002", email: "moderator@civitas.test", role: UserRole.MODERATOR },
+        "tk_viewer_test_key_003": { id: "a0000000-0000-0000-0000-000000000003", email: "viewer@civitas.test", role: UserRole.VIEWER },
+      };
+
+      const userInfo = usersByApiKey[apiKey] || {
+        id: "a0000000-0000-0000-0000-000000000001",
+        email: "admin@civitas.test",
+        role: UserRole.ADMIN
+      };
+
       const mockUser = {
-        id: "user_123",
-        email: "moderator@civitas.ai",
-        role: UserRole.MODERATOR,
+        ...userInfo,
         created_at: new Date().toISOString(),
       };
 
@@ -88,8 +98,8 @@ export default function Login() {
               </Button>
 
               <div className="mt-4 text-sm text-gray-600">
-                <p>Demo credentials:</p>
-                <p className="mt-1">Use any API key to demo the application</p>
+                <p className="font-medium">Demo credentials:</p>
+                <p className="mt-1 font-mono text-xs bg-gray-100 p-2 rounded">tk_admin_test_key_001</p>
               </div>
             </form>
           </CardContent>

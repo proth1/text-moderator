@@ -32,10 +32,10 @@ apiClient.interceptors.response.use(
       const message = error.response.data?.error || error.response.data?.message || "An error occurred";
       console.error("API Error:", message);
 
-      // Handle unauthorized
+      // Handle unauthorized - don't force redirect, let components handle it gracefully
+      // This prevents redirect loops when API endpoints return 401
       if (error.response.status === 401) {
-        localStorage.removeItem("api_key");
-        window.location.href = "/login";
+        console.warn("Unauthorized API request - user may need to re-login");
       }
     } else if (error.request) {
       // Request made but no response
