@@ -154,3 +154,68 @@ func WithUserContext(ctx context.Context, userID uuid.UUID, role string) context
 	ctx = context.WithValue(ctx, UserRoleContextKey, role)
 	return ctx
 }
+
+// InternalServiceHeader is the header used for service-to-service authentication
+const InternalServiceHeader = "X-Internal-Service-Token"
+
+// InternalServiceAuthMiddleware validates requests from other internal services.
+// This provides defense-in-depth for internal service endpoints.
+// The token should be set via INTERNAL_SERVICE_TOKEN environment variable.
+func InternalServiceAuthMiddleware(expectedToken string, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// If no token configured, reject all requests (fail secure)
+		if expectedToken == "" {
+			logger.Error("internal service token not configured - rejecting request")
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "service not properly configured",
+			})
+			c.Abort()
+			return
+		}
+
+		token := c.GetHeader(InternalServiceHeader)
+		if token == "" {
+			// Also check X-API-Key for backwards compatibility with gateway proxy
+			token = extractAPIKey(c)
+		}
+
+		if token == "" {
+			logger.Warn("missing internal service token",
+				zap.String("path", c.Request.URL.Path),
+				zap.String("remote_addr", c.ClientIP()),
+			)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			c.Abort()
+			return
+		}
+
+		// Constant-time comparison to prevent timing attacks
+		if !secureCompare(token, expectedToken) {
+			logger.Warn("invalid internal service token",
+				zap.String("path", c.Request.URL.Path),
+				zap.String("remote_addr", c.ClientIP()),
+			)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// secureCompare performs constant-time string comparison to prevent timing attacks
+func secureCompare(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var result byte
+	for i := 0; i < len(a); i++ {
+		result |= a[i] ^ b[i]
+	}
+	return result == 0
+}

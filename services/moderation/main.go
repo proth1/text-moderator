@@ -115,13 +115,24 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.LoggingMiddleware(logger))
-	router.Use(middleware.CORSMiddleware(middleware.DefaultCORSConfig()))
+	router.Use(middleware.CORSMiddleware(middleware.CORSConfigFromOrigins(cfg.AllowedOrigins)))
 
-	// Health check
+	// Health check - public for load balancer probes
 	router.GET("/health", healthHandler(db, hfClient, logger))
 
-	// Moderation endpoint
-	router.POST("/moderate", moderateHandler(db, hfClient, evaluator, evidenceWriter, cfg, logger))
+	// Moderation endpoint - requires internal service authentication
+	// In production, INTERNAL_SERVICE_TOKEN must be set
+	// In development, we allow requests if token is not configured (with a warning)
+	api := router.Group("/")
+	if cfg.InternalServiceToken != "" {
+		api.Use(middleware.InternalServiceAuthMiddleware(cfg.InternalServiceToken, logger))
+	} else if cfg.Environment == "production" {
+		logger.Error("CRITICAL: INTERNAL_SERVICE_TOKEN not configured in production - all moderation requests will fail")
+		api.Use(middleware.InternalServiceAuthMiddleware("", logger)) // This will reject all requests
+	} else {
+		logger.Warn("INTERNAL_SERVICE_TOKEN not configured - internal endpoints are unprotected (development mode only)")
+	}
+	api.POST("/moderate", moderateHandler(db, hfClient, evaluator, evidenceWriter, cfg, logger))
 
 	return router
 }
@@ -134,8 +145,10 @@ func healthHandler(db *database.PostgresDB, hfClient *client.HuggingFaceClient, 
 		checks := make(map[string]string)
 
 		// Check database
+		// SECURITY: Don't expose error details in health check responses
 		if err := db.Health(ctx); err != nil {
-			checks["database"] = "unhealthy: " + err.Error()
+			logger.Warn("database health check failed", zap.Error(err))
+			checks["database"] = "unhealthy"
 		} else {
 			checks["database"] = "healthy"
 		}
@@ -176,7 +189,9 @@ func moderateHandler(db *database.PostgresDB, hfClient *client.HuggingFaceClient
 	return func(c *gin.Context) {
 		var req models.ModerationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			// SECURITY: Don't expose detailed parsing errors to clients
+			logger.Debug("invalid request body", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 

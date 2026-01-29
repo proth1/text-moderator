@@ -7,14 +7,38 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // SECURITY: Include cookies for cross-origin requests (required for HttpOnly session cookies)
+  withCredentials: true,
 });
+
+// Interface for session storage (must match authStore)
+interface StoredSession {
+  apiKey: string;
+  user: unknown;
+  expiresAt: number;
+}
 
 // Request interceptor to add API key
 apiClient.interceptors.request.use(
   (config) => {
-    const apiKey = localStorage.getItem("api_key");
-    if (apiKey) {
-      config.headers["X-API-Key"] = apiKey;
+    // Try to get API key from session storage
+    try {
+      const sessionStr = localStorage.getItem("civitas_session");
+      if (sessionStr) {
+        const session: StoredSession = JSON.parse(sessionStr);
+        // SECURITY: Check session expiry before using
+        if (session.expiresAt && Date.now() <= session.expiresAt && session.apiKey) {
+          config.headers["X-API-Key"] = session.apiKey;
+        }
+      } else {
+        // Legacy support
+        const apiKey = localStorage.getItem("api_key");
+        if (apiKey) {
+          config.headers["X-API-Key"] = apiKey;
+        }
+      }
+    } catch {
+      // Ignore errors reading session
     }
     return config;
   },
@@ -29,19 +53,20 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response) {
       // Server responded with error status
-      const message = error.response.data?.error || error.response.data?.message || "An error occurred";
-      console.error("API Error:", message);
+      // SECURITY: Don't log full error details in production
+      const status = error.response.status;
 
-      // Handle unauthorized - don't force redirect, let components handle it gracefully
-      // This prevents redirect loops when API endpoints return 401
-      if (error.response.status === 401) {
-        console.warn("Unauthorized API request - user may need to re-login");
+      // Handle unauthorized - session may have expired
+      if (status === 401) {
+        // Clear potentially expired session
+        localStorage.removeItem("civitas_session");
+        localStorage.removeItem("api_key");
+        localStorage.removeItem("user");
+        console.warn("Session expired or invalid - please log in again");
       }
     } else if (error.request) {
       // Request made but no response
-      console.error("Network Error:", error.message);
-    } else {
-      console.error("Error:", error.message);
+      console.error("Network error - please check your connection");
     }
     return Promise.reject(error);
   }

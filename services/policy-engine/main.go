@@ -125,8 +125,10 @@ func healthHandler(db *database.PostgresDB) gin.HandlerFunc {
 		checks := make(map[string]string)
 
 		// Check database
+		// SECURITY: Don't expose error details in health check responses
 		if err := db.Health(ctx); err != nil {
-			checks["database"] = "unhealthy: " + err.Error()
+			// Log error internally but don't expose to clients
+			checks["database"] = "unhealthy"
 		} else {
 			checks["database"] = "healthy"
 		}
@@ -178,7 +180,8 @@ func createPolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req models.CreatePolicyRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			// SECURITY: Don't expose detailed parsing errors to clients
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 
@@ -244,7 +247,8 @@ func evaluatePolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 
 		var req models.PolicyEvaluationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			// SECURITY: Don't expose detailed parsing errors to clients
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 
@@ -252,7 +256,8 @@ func evaluatePolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 
 		result, err := evaluator.EvaluateScores(ctx, &req.CategoryScores, policyID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			// SECURITY: Don't expose internal error details
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to evaluate policy"})
 			return
 		}
 

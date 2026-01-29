@@ -43,9 +43,10 @@ type Config struct {
 	ReviewURL       string
 
 	// Security
-	AllowedOrigins  string
-	RateLimitRPM    int
-	MaxContentLength int
+	AllowedOrigins       string
+	RateLimitRPM         int
+	MaxContentLength     int
+	InternalServiceToken string // Shared secret for service-to-service auth
 
 	// Logging
 	LogLevel string
@@ -90,9 +91,10 @@ func Load() (*Config, error) {
 		ReviewURL:       getEnv("REVIEW_URL", ""),
 
 		// Security
-		AllowedOrigins:   getEnv("ALLOWED_ORIGINS", ""),
-		RateLimitRPM:     getEnvAsInt("RATE_LIMIT_RPM", 60),
-		MaxContentLength: getEnvAsInt("MAX_CONTENT_LENGTH", 10000),
+		AllowedOrigins:       getEnv("ALLOWED_ORIGINS", ""),
+		RateLimitRPM:         getEnvAsInt("RATE_LIMIT_RPM", 60),
+		MaxContentLength:     getEnvAsInt("MAX_CONTENT_LENGTH", 10000),
+		InternalServiceToken: getEnv("INTERNAL_SERVICE_TOKEN", ""), // Required in production
 
 		// Logging
 		LogLevel: getEnv("LOG_LEVEL", "info"),

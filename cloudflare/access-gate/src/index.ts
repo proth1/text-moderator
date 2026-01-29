@@ -434,13 +434,41 @@ export default {
           expirationTtl: 90 * 24 * 60 * 60,
         });
 
-        // Redirect to target site with auth token in URL
-        // The target site's middleware will validate this token and set its own session cookie
+        // SECURITY: Set session token via HttpOnly cookie instead of URL parameter
+        // This prevents token leakage via browser history, referrer headers, and server logs
         const targetUrl = SITES[tokenData.target as keyof typeof SITES]?.url || SITES.web.url;
+        const targetDomain = new URL(targetUrl).hostname;
+
+        // Create a secure, HttpOnly cookie for the session
+        // SameSite=Lax allows the cookie to be sent on navigation from the auth gate
+        const cookieOptions = [
+          `civitas_session=${sessionId}`,
+          'Path=/',
+          'HttpOnly',
+          'Secure',
+          'SameSite=Lax',
+          `Max-Age=${SESSION_DURATION}`,
+        ];
+
+        // If target is a subdomain, set cookie for the parent domain
+        // This allows the cookie to work across subdomains (e.g., *.pages.dev)
+        if (targetDomain.includes('.')) {
+          const parts = targetDomain.split('.');
+          if (parts.length >= 2) {
+            // For *.pages.dev, set domain to pages.dev (requires proper CORS setup)
+            // For custom domains, this should work correctly
+            const parentDomain = parts.slice(-2).join('.');
+            if (!parentDomain.includes('localhost')) {
+              cookieOptions.push(`Domain=.${parentDomain}`);
+            }
+          }
+        }
+
         return new Response(null, {
           status: 302,
           headers: {
-            'Location': `${targetUrl}?civitas_auth=${sessionId}`,
+            'Location': targetUrl,
+            'Set-Cookie': cookieOptions.join('; '),
           },
         });
       }

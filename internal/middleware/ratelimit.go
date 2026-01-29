@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,22 +91,78 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 	}
 }
 
+// trustedProxyCIDRs defines networks from which X-Forwarded-For headers are trusted.
+// These should be configured based on your infrastructure.
+// For Cloud Run: Google's frontend proxies add the client IP.
+// For local dev: Trust localhost.
+var trustedProxyCIDRs = []string{
+	"10.0.0.0/8",      // Private networks (Cloud Run internal)
+	"172.16.0.0/12",   // Private networks (Docker)
+	"192.168.0.0/16",  // Private networks (local)
+	"127.0.0.1/8",     // Localhost
+	"169.254.0.0/16",  // Link-local (GCP metadata)
+	"35.191.0.0/16",   // Google Cloud Load Balancer
+	"130.211.0.0/22",  // Google Cloud Load Balancer
+}
+
 func clientIP(c *gin.Context) string {
-	// Trust X-Forwarded-For from Cloud Run's load balancer
-	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
-		// First IP is the client
-		if ip, _, err := net.SplitHostPort(xff); err == nil {
-			return ip
-		}
-		// May not have port
-		parts := splitFirst(xff, ",")
-		return parts
-	}
-	ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+	remoteAddr := c.Request.RemoteAddr
+	remoteIP, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		return c.Request.RemoteAddr
+		remoteIP = remoteAddr
 	}
-	return ip
+
+	// SECURITY: Only trust X-Forwarded-For if the request comes from a trusted proxy
+	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
+		if isTrustedProxy(remoteIP) {
+			// Use the rightmost non-trusted IP in the chain (most reliable)
+			// This prevents spoofing by malicious clients
+			ips := parseXForwardedFor(xff)
+			for i := len(ips) - 1; i >= 0; i-- {
+				if !isTrustedProxy(ips[i]) {
+					return ips[i]
+				}
+			}
+		}
+		// Not from trusted proxy - ignore X-Forwarded-For, use direct connection IP
+	}
+
+	return remoteIP
+}
+
+// parseXForwardedFor extracts individual IPs from X-Forwarded-For header
+func parseXForwardedFor(xff string) []string {
+	var ips []string
+	for _, part := range strings.Split(xff, ",") {
+		ip := strings.TrimSpace(part)
+		// Remove port if present
+		if host, _, err := net.SplitHostPort(ip); err == nil {
+			ip = host
+		}
+		if ip != "" {
+			ips = append(ips, ip)
+		}
+	}
+	return ips
+}
+
+// isTrustedProxy checks if an IP is from a trusted proxy network
+func isTrustedProxy(ip string) bool {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return false
+	}
+
+	for _, cidr := range trustedProxyCIDRs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(parsedIP) {
+			return true
+		}
+	}
+	return false
 }
 
 func splitFirst(s, sep string) string {

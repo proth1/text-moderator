@@ -31,6 +31,9 @@ var allowedProxyHeaders = map[string]bool{
 	"x-request-id":     true,
 }
 
+// internalServiceTokenHeader is the header for service-to-service auth
+const internalServiceTokenHeader = "X-Internal-Service-Token"
+
 // API Gateway routes requests to backend services
 
 func main() {
@@ -105,6 +108,33 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	// Request body size limit
 	router.Use(func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBodySize)
+		c.Next()
+	})
+
+	// Content-Type validation for POST/PUT/PATCH requests
+	router.Use(func(c *gin.Context) {
+		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
+			contentType := c.GetHeader("Content-Type")
+			// Allow empty body (Content-Length: 0) without Content-Type
+			if c.Request.ContentLength > 0 {
+				// SECURITY: Require explicit Content-Type for requests with body
+				if contentType == "" {
+					c.JSON(http.StatusUnsupportedMediaType, gin.H{
+						"error": "Content-Type header is required",
+					})
+					c.Abort()
+					return
+				}
+				// Only accept JSON for API requests
+				if !strings.HasPrefix(contentType, "application/json") {
+					c.JSON(http.StatusUnsupportedMediaType, gin.H{
+						"error": "Content-Type must be application/json",
+					})
+					c.Abort()
+					return
+				}
+			}
+		}
 		c.Next()
 	})
 
@@ -218,6 +248,11 @@ func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path s
 					proxyReq.Header.Add(key, value)
 				}
 			}
+		}
+
+		// Add internal service token for service-to-service authentication
+		if cfg.InternalServiceToken != "" {
+			proxyReq.Header.Set(internalServiceTokenHeader, cfg.InternalServiceToken)
 		}
 
 		// Send request

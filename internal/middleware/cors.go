@@ -17,10 +17,14 @@ type CORSConfig struct {
 	MaxAge           int
 }
 
-// DefaultCORSConfig returns a default CORS configuration
+// DefaultCORSConfig returns a restrictive default CORS configuration.
+// In production, you MUST set ALLOWED_ORIGINS environment variable.
+// SECURITY: Wildcard "*" is only allowed in development mode.
 func DefaultCORSConfig() CORSConfig {
 	return CORSConfig{
-		AllowedOrigins: []string{"*"},
+		// SECURITY: Empty by default - requires explicit configuration
+		// Use CORSConfigFromOrigins() with ALLOWED_ORIGINS env var in production
+		AllowedOrigins: []string{},
 		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{
 			"Origin",
@@ -39,40 +43,74 @@ func DefaultCORSConfig() CORSConfig {
 	}
 }
 
+// DevelopmentCORSConfig returns a permissive CORS config for local development only.
+// WARNING: Never use this in production!
+func DevelopmentCORSConfig() CORSConfig {
+	cfg := DefaultCORSConfig()
+	cfg.AllowedOrigins = []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"}
+	cfg.AllowCredentials = true
+	return cfg
+}
+
 // CORSConfigFromOrigins creates a CORS config with specific allowed origins.
 // Pass a comma-separated string of origins (e.g. "https://example.com,https://other.com").
-// Empty string defaults to "*" (development mode).
+// SECURITY: Empty string results in no CORS headers being sent (restrictive default).
+// For development, explicitly pass "http://localhost:3000" or similar.
 func CORSConfigFromOrigins(origins string) CORSConfig {
 	cfg := DefaultCORSConfig()
-	if origins != "" {
-		parsed := strings.Split(origins, ",")
-		trimmed := make([]string, 0, len(parsed))
-		for _, o := range parsed {
-			o = strings.TrimSpace(o)
-			if o != "" {
-				trimmed = append(trimmed, o)
+	if origins == "" {
+		// SECURITY: No origins configured - CORS headers won't be sent
+		// This is the secure default for production
+		return cfg
+	}
+
+	parsed := strings.Split(origins, ",")
+	trimmed := make([]string, 0, len(parsed))
+	for _, o := range parsed {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			// SECURITY: Reject wildcard in production - must be explicit origins
+			if o == "*" {
+				// Log warning but don't add - require explicit origins
+				continue
 			}
+			trimmed = append(trimmed, o)
 		}
-		if len(trimmed) > 0 {
-			cfg.AllowedOrigins = trimmed
-			cfg.AllowCredentials = true
-		}
+	}
+	if len(trimmed) > 0 {
+		cfg.AllowedOrigins = trimmed
+		cfg.AllowCredentials = true
 	}
 	return cfg
 }
 
-// CORSMiddleware creates a CORS middleware with the given configuration
+// CORSMiddleware creates a CORS middleware with the given configuration.
+// SECURITY: If no origins are configured, no CORS headers are sent (restrictive default).
 func CORSMiddleware(config CORSConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		// Set CORS headers
-		if len(config.AllowedOrigins) > 0 {
-			if config.AllowedOrigins[0] == "*" {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-			} else if origin != "" && contains(config.AllowedOrigins, origin) {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-				c.Writer.Header().Set("Vary", "Origin")
+		// SECURITY: If no allowed origins configured, don't set any CORS headers
+		// This prevents cross-origin requests entirely
+		if len(config.AllowedOrigins) == 0 {
+			// Handle preflight but don't allow the request
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(403)
+				return
+			}
+			c.Next()
+			return
+		}
+
+		// Set CORS headers only for configured origins
+		if origin != "" && contains(config.AllowedOrigins, origin) {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Vary", "Origin")
+		} else if origin != "" {
+			// Origin not in allowed list - reject preflight, continue without CORS headers for regular requests
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(403)
+				return
 			}
 		}
 
