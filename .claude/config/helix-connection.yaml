@@ -1,0 +1,30 @@
+tenant:
+  slug: "text-moderator"
+  name: "Civitas Text Moderator"
+
+platform:
+  base_url: "https://helix-api.agentic-innovations.com"
+
+services:
+  context_intelligence:
+    enabled: true
+    endpoints:
+      full_analysis: "/api/v1/analysis/full-analysis"
+      detect_task: "/api/v1/analysis/detect-task"
+      suggest_patterns: "/api/v1/analysis/suggest-patterns"
+      identify_risks: "/api/v1/analysis/identify-risks"
+
+  critical_thinking:
+    enabled: true
+    endpoints:
+      pre_task: "/api/v1/pre-task"
+      post_task: "/api/v1/post-task"
+      pr_analysis: "/api/v1/pr-analysis"
+
+auth:
+  type: "jwt"
+  algorithm: "HS256"
+  # Secret from: HELIX_JWT_SECRET environment variable
+
+fallback:
+  mode: "graceful"  # Continue without Helix if unavailable

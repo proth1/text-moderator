@@ -1,0 +1,18 @@
+project_management_tool: "GitHub"
+github:
+  owner: "proth1"
+  repo: "text-moderator"
+  work_item_format: "#XXX"
+  branch_format: "feature/{id}-{description}"
+
+  labels:
+    - bug
+    - enhancement
+    - documentation
+
+  default_assignee: "proth1"
+
+helix:
+  enabled: true
+  tenant_slug: "text-moderator"
+  api_base_url: "https://helix-api.agentic-innovations.com"
