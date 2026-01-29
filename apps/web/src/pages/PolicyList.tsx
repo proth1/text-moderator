@@ -5,7 +5,7 @@ import Button from "../components/ui/Button";
 import { usePolicies } from "../hooks/usePolicies";
 import { PolicyStatus } from "../types";
 import { formatDate } from "../lib/utils";
-import { Plus, Edit } from "lucide-react";
+import { Plus, Edit, FileText, Shield } from "lucide-react";
 
 export default function PolicyList() {
   const { data: policies, isLoading, isError } = usePolicies();
@@ -24,11 +24,12 @@ export default function PolicyList() {
   };
 
   return (
-    <div>
-      <div className="mb-8 flex items-center justify-between">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Policies</h1>
-          <p className="mt-2 text-gray-600">Manage moderation policies</p>
+          <h1 className="text-3xl font-bold text-white">Policies</h1>
+          <p className="mt-1 text-slate-400">Configure moderation rules and thresholds</p>
         </div>
         <Link to="/policies/new">
           <Button>
@@ -40,16 +41,25 @@ export default function PolicyList() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Policies</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-purple-400" />
+            All Policies
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-gray-500">Loading policies...</div>
+            <div className="text-center py-12">
+              <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-slate-500">Loading policies...</p>
+            </div>
           ) : isError ? (
-            <div className="text-center py-8 text-red-600">Failed to load policies</div>
+            <div className="text-center py-12 text-red-400">Failed to load policies</div>
           ) : !policies || policies.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p className="mb-4">No policies found</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800 flex items-center justify-center">
+                <Shield className="w-8 h-8 text-slate-600" />
+              </div>
+              <p className="text-slate-500 mb-4">No policies found</p>
               <Link to="/policies/new">
                 <Button>Create your first policy</Button>
               </Link>
@@ -60,23 +70,23 @@ export default function PolicyList() {
                 <div
                   key={policy.id}
                   data-testid="policy-item"
-                  className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+                  className="border border-slate-700 rounded-xl p-5 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900" data-testid="policy-name">{policy.name}</h3>
+                        <h3 className="text-lg font-semibold text-white" data-testid="policy-name">{policy.name}</h3>
                         <Badge variant={getStatusVariant(policy.status)} data-testid="policy-status">
                           {policy.status.toUpperCase()}
                         </Badge>
-                        <span className="text-sm text-gray-500" data-testid="policy-version">v{policy.version}</span>
+                        <span className="text-sm text-slate-500" data-testid="policy-version">v{policy.version}</span>
                       </div>
 
                       {policy.description && (
-                        <p className="text-sm text-gray-600 mb-3">{policy.description}</p>
+                        <p className="text-sm text-slate-400 mb-3">{policy.description}</p>
                       )}
 
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-slate-500">
                         <span>Created: {formatDate(policy.created_at)}</span>
                         {policy.published_at && (
                           <span>Published: {formatDate(policy.published_at)}</span>
