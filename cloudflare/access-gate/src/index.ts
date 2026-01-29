@@ -185,9 +185,7 @@ async function sendMagicLinkEmail(email: string, magicLink: string, siteName: st
         from: 'Civitas AI <onboarding@resend.dev>',
         to: [email],
         subject: `Your Civitas AI Access Link`,
-        headers: {
-          'X-Entity-Ref-ID': crypto.randomUUID(), // Prevent threading
-        },
+        // Plain text only - no HTML to avoid Resend's broken click tracking
         text: `Civitas AI - Access Link
 
 Click or copy this link to access ${siteName}:
@@ -197,26 +195,6 @@ ${magicLink}
 This link expires in 10 minutes.
 
 If you didn't request this link, you can safely ignore this email.`,
-        html: `
-          <div style="font-family: system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #3b82f6; margin-bottom: 20px;">Civitas AI</h1>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              Click the button below to access <strong>${siteName}</strong>:
-            </p>
-            <a href="${magicLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 20px 0;">
-              Access Civitas AI
-            </a>
-            <p style="color: #6b7280; font-size: 14px;">
-              This link expires in 10 minutes.
-            </p>
-            <p style="color: #9ca3af; font-size: 12px; margin-top: 20px; word-break: break-all;">
-              Or copy this link: ${magicLink}
-            </p>
-            <p style="color: #9ca3af; font-size: 12px; margin-top: 10px;">
-              If you didn't request this link, you can safely ignore this email.
-            </p>
-          </div>
-        `,
       }),
     });
     return response.ok;
