@@ -68,33 +68,45 @@ export default function MainLayout() {
           })}
         </nav>
 
-        {/* Built with AI Badge */}
-        <div className="px-4 py-3 mx-3 mb-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-          <div className="flex items-center gap-2 text-xs">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-purple-300 font-medium">Built with AI</span>
-          </div>
-        </div>
-
         {/* User section */}
         <div className="border-t border-slate-800 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold shadow-lg shadow-blue-500/25">
-                {user?.email?.charAt(0).toUpperCase()}
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-slate-200">{user?.email}</p>
-                <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-blue-500/25">
+              {user?.email?.charAt(0).toUpperCase() || "?"}
             </div>
+
+            {/* User info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-200 truncate">
+                {user?.email?.split("@")[0] || "User"}
+              </p>
+              <span className={cn(
+                "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide",
+                user?.role === "admin" && "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+                user?.role === "moderator" && "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+                user?.role === "viewer" && "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+              )}>
+                {user?.role || "user"}
+              </span>
+            </div>
+
+            {/* Logout button */}
             <button
               onClick={logout}
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-              title="Logout"
+              className="flex-shrink-0 p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Sign out"
             >
               <LogOut className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+
+        {/* Built with AI Badge */}
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-slate-500">
+            <Sparkles className="w-3 h-3" />
+            <span>Built with AI</span>
           </div>
         </div>
       </div>
