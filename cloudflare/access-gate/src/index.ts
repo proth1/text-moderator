@@ -172,6 +172,99 @@ function generateToken(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+// Professional HTML email template
+function getMagicLinkEmailHTML(magicLink: string, siteName: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Your Civitas AI Access Link</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 24px 40px; text-align: center;">
+              <div style="display: inline-block; width: 64px; height: 64px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 16px; line-height: 64px; margin-bottom: 24px;">
+                <span style="font-size: 28px; color: white;">&#x1F6E1;</span>
+              </div>
+              <h1 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #f8fafc;">Civitas AI</h1>
+              <p style="margin: 0; font-size: 14px; color: #94a3b8;">Trust & Safety Infrastructure</p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 24px; text-align: center;">
+                <p style="margin: 0 0 16px 0; font-size: 16px; color: #e2e8f0;">
+                  Your secure access link for<br>
+                  <strong style="color: #60a5fa;">${siteName}</strong>
+                </p>
+                <a href="${magicLink}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
+                  Access Civitas AI &rarr;
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Link Display -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; text-align: center;">
+                Or copy and paste this link:
+              </p>
+              <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; word-break: break-all;">
+                <code style="font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 11px; color: #60a5fa;">${magicLink}</code>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Expiry Notice -->
+          <tr>
+            <td style="padding: 24px 40px;">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span style="font-size: 14px;">&#x23F1;</span>
+                <p style="margin: 0; font-size: 13px; color: #f59e0b; text-align: center;">
+                  This link expires in <strong>10 minutes</strong>
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border: none; border-top: 1px solid #334155; margin: 0;">
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 40px 40px; text-align: center;">
+              <p style="margin: 0 0 12px 0; font-size: 12px; color: #64748b;">
+                If you didn't request this link, you can safely ignore this email.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #475569;">
+                Powered by <strong style="color: #94a3b8;">Civitas AI</strong> &bull; Built with AI
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+}
+
 // Send magic link email via Resend
 async function sendMagicLinkEmail(email: string, magicLink: string, siteName: string, apiKey: string): Promise<boolean> {
   try {
@@ -185,16 +278,21 @@ async function sendMagicLinkEmail(email: string, magicLink: string, siteName: st
         from: 'Civitas AI <onboarding@resend.dev>',
         to: [email],
         subject: `Your Civitas AI Access Link`,
-        // Plain text only - no HTML to avoid Resend's broken click tracking
-        text: `Civitas AI - Access Link
+        html: getMagicLinkEmailHTML(magicLink, siteName),
+        // Include plain text fallback for email clients that don't support HTML
+        text: `Civitas AI - Secure Access Link
 
-Click or copy this link to access ${siteName}:
-
+Your access link for ${siteName}:
 ${magicLink}
+
+Click the link above or copy and paste it into your browser.
 
 This link expires in 10 minutes.
 
-If you didn't request this link, you can safely ignore this email.`,
+If you didn't request this link, you can safely ignore this email.
+
+---
+Powered by Civitas AI - Built with AI`,
       }),
     });
     return response.ok;

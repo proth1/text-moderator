@@ -4,9 +4,9 @@ compatibility_date = "2024-01-01"
 
 # KV namespaces for auth flow
 kv_namespaces = [
-  { binding = "ACCESS_LOG", id = "cb2722db75bb40f7bdab29d91fa8a640" },
-  { binding = "MAGIC_TOKENS", id = "80ac0efcbe9a400fb33fbefeab517319" },
-  { binding = "SESSIONS", id = "a46156d78906424299a041b8369958ab" }
+  { binding = "ACCESS_LOG", id = "b9778cc60a2b498fb1ec48649cbd3f42" },
+  { binding = "MAGIC_TOKENS", id = "41cdca014e1d4a3298ec5718aee92f4e" },
+  { binding = "SESSIONS", id = "a4e8320cf6f24c08ac59ff654064d50b" }
 ]
 
 [vars]
