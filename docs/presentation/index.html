@@ -185,6 +185,160 @@
     .timeline-item.complete::before { background: var(--accent-green); }
     .timeline-item.planned::before { background: var(--accent-yellow); }
     .timeline-item.future::before { background: #334155; border: 2px solid #475569; }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid #334155;
+      border-radius: 1rem;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: var(--card-bg);
+      z-index: 10;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0.5rem;
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+      color: #ef4444;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .control-item {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .control-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+
+    .control-id {
+      font-family: monospace;
+      font-weight: 600;
+      color: #60a5fa;
+    }
+
+    .control-criticality {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .criticality-critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .criticality-high { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+    .criticality-medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+
+    .framework-card-clickable {
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .framework-card-clickable:hover {
+      transform: translateY(-4px);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+    }
+
+    .framework-card-clickable:hover .click-hint {
+      opacity: 1;
+    }
+
+    .click-hint {
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-size: 0.7rem;
+      color: #60a5fa;
+    }
+
+    /* Test suite styles */
+    .test-stat-card {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .test-suite-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: #0f172a;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .test-count {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      min-width: 2rem;
+      text-align: center;
+    }
   </style>
 </head>
 <body class="scroll-snap-y">
@@ -727,41 +881,52 @@
   <!-- Slide 9: Regulatory Compliance -->
   <section class="slide" id="slide-9">
     <div class="max-w-6xl mx-auto">
-      <h2 class="text-4xl font-bold mb-8">Regulatory Compliance</h2>
+      <h2 class="text-4xl font-bold mb-4">Regulatory Compliance</h2>
+      <div class="narrative-box mb-6">
+        <p>
+          <span class="highlight">Click any framework card</span> to see the detailed controls mapped to that regulation.
+          Each control includes its ID, description, criticality level, and the specific articles or clauses it addresses.
+        </p>
+      </div>
       <div class="framework-grid">
-        <div class="card text-center">
+        <div class="card text-center framework-card-clickable" onclick="openModal('eu-ai-act')">
           <div class="text-3xl mb-2">🇪🇺</div>
           <h4 class="font-semibold">EU AI Act</h4>
           <p class="text-sm text-slate-400 mt-2">Art. 9, 13, 14, 15, 17</p>
-          <div class="mt-3 text-xs text-green-400">12 controls mapped</div>
+          <div class="mt-3 text-xs text-green-400">5 controls mapped</div>
+          <div class="click-hint mt-2">Click for details →</div>
         </div>
-        <div class="card text-center">
+        <div class="card text-center framework-card-clickable" onclick="openModal('nist')">
           <div class="text-3xl mb-2">🏛️</div>
           <h4 class="font-semibold">NIST AI RMF</h4>
           <p class="text-sm text-slate-400 mt-2">MAP, MEASURE, MANAGE, GOVERN</p>
-          <div class="mt-3 text-xs text-green-400">8 controls mapped</div>
+          <div class="mt-3 text-xs text-green-400">4 controls mapped</div>
+          <div class="click-hint mt-2">Click for details →</div>
         </div>
-        <div class="card text-center">
+        <div class="card text-center framework-card-clickable" onclick="openModal('iso')">
           <div class="text-3xl mb-2">🌐</div>
           <h4 class="font-semibold">ISO 42001</h4>
           <p class="text-sm text-slate-400 mt-2">Clause 6, 8, 9</p>
-          <div class="mt-3 text-xs text-green-400">6 controls mapped</div>
+          <div class="mt-3 text-xs text-green-400">3 controls mapped</div>
+          <div class="click-hint mt-2">Click for details →</div>
         </div>
-        <div class="card text-center">
+        <div class="card text-center framework-card-clickable" onclick="openModal('gdpr')">
           <div class="text-3xl mb-2">🔒</div>
           <h4 class="font-semibold">GDPR</h4>
-          <p class="text-sm text-slate-400 mt-2">Art. 22, 35</p>
-          <div class="mt-3 text-xs text-green-400">5 controls mapped</div>
+          <p class="text-sm text-slate-400 mt-2">Art. 5, 22, 32</p>
+          <div class="mt-3 text-xs text-green-400">4 controls mapped</div>
+          <div class="click-hint mt-2">Click for details →</div>
         </div>
-        <div class="card text-center">
+        <div class="card text-center framework-card-clickable" onclick="openModal('soc2')">
           <div class="text-3xl mb-2">✅</div>
           <h4 class="font-semibold">SOC 2</h4>
-          <p class="text-sm text-slate-400 mt-2">CC6, CC7, CC8</p>
-          <div class="mt-3 text-xs text-green-400">7 controls mapped</div>
+          <p class="text-sm text-slate-400 mt-2">CC3, CC6, CC7</p>
+          <div class="mt-3 text-xs text-green-400">5 controls mapped</div>
+          <div class="click-hint mt-2">Click for details →</div>
         </div>
       </div>
       <div class="mt-8 text-center text-sm text-slate-400">
-        18 implemented controls with full traceability to regulatory requirements
+        12 implemented controls with full traceability to regulatory requirements
       </div>
     </div>
   </section>
@@ -1047,8 +1212,130 @@ if result.action == "block":
     </div>
   </section>
 
-  <!-- Slide 14: Roadmap -->
+  <!-- Slide 14: Test Suite -->
   <section class="slide" id="slide-14">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-4">Comprehensive Test Suite</h2>
+      <div class="narrative-box mb-6">
+        <p>
+          <span class="highlight">Multi-layered testing strategy</span> ensures reliability and compliance.
+          E2E tests validate user workflows, CDD tests verify governance controls, and the CI/CD pipeline
+          runs <span class="highlight">36 automated tests</span> on every commit.
+        </p>
+      </div>
+
+      <!-- Test Stats -->
+      <div class="grid md:grid-cols-4 gap-4 mb-6">
+        <div class="card test-stat-card text-center">
+          <div class="text-3xl font-bold text-green-400">36</div>
+          <div class="text-sm text-slate-400">Tests Passing</div>
+        </div>
+        <div class="card test-stat-card text-center">
+          <div class="text-3xl font-bold text-green-400">4</div>
+          <div class="text-sm text-slate-400">Test Suites</div>
+        </div>
+        <div class="card test-stat-card text-center">
+          <div class="text-3xl font-bold text-green-400">12</div>
+          <div class="text-sm text-slate-400">CDD Controls</div>
+        </div>
+        <div class="card test-stat-card text-center">
+          <div class="text-3xl font-bold text-green-400">&lt;17s</div>
+          <div class="text-sm text-slate-400">Full Suite Runtime</div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- E2E Tests -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            E2E Tests (Playwright)
+          </h3>
+          <div class="test-suite-item">
+            <span class="test-count">11</span>
+            <span class="text-slate-300">Audit Log</span>
+            <span class="text-xs text-slate-500 ml-auto">Evidence, Export, Search</span>
+          </div>
+          <div class="test-suite-item">
+            <span class="test-count">8</span>
+            <span class="text-slate-300">Moderation Demo</span>
+            <span class="text-xs text-slate-500 ml-auto">Submit, ALLOW/BLOCK, Scores</span>
+          </div>
+          <div class="test-suite-item">
+            <span class="test-count">7</span>
+            <span class="text-slate-300">Moderator Queue</span>
+            <span class="text-xs text-slate-500 ml-auto">Review, Approve, Override</span>
+          </div>
+          <div class="test-suite-item">
+            <span class="test-count">10</span>
+            <span class="text-slate-300">Policy Management</span>
+            <span class="text-xs text-slate-500 ml-auto">Create, Edit, Thresholds</span>
+          </div>
+        </div>
+
+        <!-- CDD Tests -->
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            Control-Driven Development
+          </h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center gap-2 p-2 bg-slate-800 rounded">
+              <span class="text-green-400">✓</span>
+              <span class="font-mono text-blue-400">MOD-001</span>
+              <span class="text-slate-400">Automated Classification</span>
+            </div>
+            <div class="flex items-center gap-2 p-2 bg-slate-800 rounded">
+              <span class="text-green-400">✓</span>
+              <span class="font-mono text-blue-400">MOD-002</span>
+              <span class="text-slate-400">Real-Time Feedback</span>
+            </div>
+            <div class="flex items-center gap-2 p-2 bg-slate-800 rounded">
+              <span class="text-green-400">✓</span>
+              <span class="font-mono text-blue-400">POL-001</span>
+              <span class="text-slate-400">Threshold Policy</span>
+            </div>
+            <div class="flex items-center gap-2 p-2 bg-slate-800 rounded">
+              <span class="text-green-400">✓</span>
+              <span class="font-mono text-blue-400">GOV-002</span>
+              <span class="text-slate-400">Human Review</span>
+            </div>
+            <div class="flex items-center gap-2 p-2 bg-slate-800 rounded">
+              <span class="text-green-400">✓</span>
+              <span class="font-mono text-blue-400">AUD-001</span>
+              <span class="text-slate-400">Immutable Evidence</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CI/CD Pipeline -->
+      <div class="card mt-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          GitHub Actions CI/CD Pipeline
+        </h3>
+        <div class="flex flex-wrap gap-3">
+          <span class="badge badge-green">Unit Tests</span>
+          <span class="badge badge-green">Integration Tests</span>
+          <span class="badge badge-green">CDD Tests</span>
+          <span class="badge badge-green">E2E Tests</span>
+          <span class="badge badge-blue">Code Coverage</span>
+          <span class="badge badge-yellow">golangci-lint</span>
+          <span class="badge badge-red">Trivy Security Scan</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 15: Roadmap -->
+  <section class="slide" id="slide-15">
     <div class="max-w-4xl mx-auto">
       <h2 class="text-4xl font-bold mb-8">Roadmap</h2>
       <div class="space-y-8">
@@ -1080,8 +1367,8 @@ if result.action == "block":
     </div>
   </section>
 
-  <!-- Slide 15: Call to Action -->
-  <section class="slide" id="slide-15">
+  <!-- Slide 16: Call to Action -->
+  <section class="slide" id="slide-16">
     <div class="max-w-4xl mx-auto text-center">
       <h2 class="text-5xl font-bold mb-6">Get Started</h2>
       <p class="text-xl text-slate-400 mb-8">
@@ -1108,6 +1395,302 @@ if result.action == "block":
       </div>
     </div>
   </section>
+
+  <!-- Regulatory Compliance Modals -->
+
+  <!-- EU AI Act Modal -->
+  <div class="modal-overlay" id="modal-eu-ai-act" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="text-2xl">🇪🇺</span> EU AI Act Compliance
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">High-risk AI system requirements</p>
+        </div>
+        <button class="modal-close" onclick="closeModal(event, true)">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">MOD-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Automated Text Classification</h4>
+          <p class="text-sm text-slate-400 mt-1">All text submissions classified by ML model with evidence generation</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 9: Risk Management System</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">MOD-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Real-Time User Feedback</h4>
+          <p class="text-sm text-slate-400 mt-1">Users receive immediate feedback on moderation decisions</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 13: Transparency Requirements</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Human-in-the-Loop Review</h4>
+          <p class="text-sm text-slate-400 mt-1">Human moderators can review and override automated decisions</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 14: Human Oversight</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">AUD-001</span>
+            <span class="control-criticality criticality-critical">Critical</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Immutable Evidence Storage</h4>
+          <p class="text-sm text-slate-400 mt-1">Evidence records cannot be modified or deleted after creation</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 17: Automatic Logging</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">AUD-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Evidence Chain of Custody</h4>
+          <p class="text-sm text-slate-400 mt-1">Evidence maintains links for complete traceability</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 12: Record-Keeping</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NIST AI RMF Modal -->
+  <div class="modal-overlay" id="modal-nist" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="text-2xl">🏛️</span> NIST AI RMF Compliance
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">AI Risk Management Framework</p>
+        </div>
+        <button class="modal-close" onclick="closeModal(event, true)">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">MOD-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Automated Text Classification</h4>
+          <p class="text-sm text-slate-400 mt-1">ML-powered content analysis with configurable thresholds</p>
+          <div class="mt-2 text-xs text-green-400">→ MAP: Context and Use Case Definition</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">POL-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Threshold-Based Moderation Policy</h4>
+          <p class="text-sm text-slate-400 mt-1">Policy engine evaluates scores against configurable thresholds</p>
+          <div class="mt-2 text-xs text-green-400">→ MEASURE: Risk Assessment and Analysis</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">POL-002</span>
+            <span class="control-criticality criticality-medium">Medium</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Policy Versioning</h4>
+          <p class="text-sm text-slate-400 mt-1">Policies are versioned with historical records maintained</p>
+          <div class="mt-2 text-xs text-green-400">→ MANAGE: Risk Prioritization and Response</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Role-Based Access Control</h4>
+          <p class="text-sm text-slate-400 mt-1">Permissions enforced based on roles (admin, moderator, viewer)</p>
+          <div class="mt-2 text-xs text-green-400">→ GOVERN: Culture and Accountability</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISO 42001 Modal -->
+  <div class="modal-overlay" id="modal-iso" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="text-2xl">🌐</span> ISO 42001 Compliance
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">AI Management System Standard</p>
+        </div>
+        <button class="modal-close" onclick="closeModal(event, true)">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">POL-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Threshold-Based Moderation Policy</h4>
+          <p class="text-sm text-slate-400 mt-1">Configurable policy rules for content evaluation</p>
+          <div class="mt-2 text-xs text-green-400">→ Clause 6: Planning for AI System Lifecycle</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">POL-002</span>
+            <span class="control-criticality criticality-medium">Medium</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Policy Versioning</h4>
+          <p class="text-sm text-slate-400 mt-1">Version control and change management for policies</p>
+          <div class="mt-2 text-xs text-green-400">→ Clause 8: Operation and Control</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Human-in-the-Loop Review</h4>
+          <p class="text-sm text-slate-400 mt-1">Human oversight and decision override capability</p>
+          <div class="mt-2 text-xs text-green-400">→ Clause 9: Performance Evaluation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GDPR Modal -->
+  <div class="modal-overlay" id="modal-gdpr" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="text-2xl">🔒</span> GDPR Compliance
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">General Data Protection Regulation</p>
+        </div>
+        <button class="modal-close" onclick="closeModal(event, true)">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">MOD-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Automated Text Classification</h4>
+          <p class="text-sm text-slate-400 mt-1">Automated decision-making with explainable outputs</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 22: Automated Decision Making</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Human-in-the-Loop Review</h4>
+          <p class="text-sm text-slate-400 mt-1">Right to human intervention in automated decisions</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 22: Right to Human Review</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">SEC-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Content Hash Privacy</h4>
+          <p class="text-sm text-slate-400 mt-1">Original content hashed, not stored in plaintext</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 32: Security of Processing</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">AUD-001</span>
+            <span class="control-criticality criticality-critical">Critical</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Immutable Evidence Storage</h4>
+          <p class="text-sm text-slate-400 mt-1">Tamper-proof audit records for accountability</p>
+          <div class="mt-2 text-xs text-green-400">→ Article 5(1)(f): Integrity and Confidentiality</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOC 2 Modal -->
+  <div class="modal-overlay" id="modal-soc2" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="text-2xl">✅</span> SOC 2 Compliance
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">Trust Services Criteria</p>
+        </div>
+        <button class="modal-close" onclick="closeModal(event, true)">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">MOD-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Automated Text Classification</h4>
+          <p class="text-sm text-slate-400 mt-1">Continuous system monitoring and classification</p>
+          <div class="mt-2 text-xs text-green-400">→ CC7.2: System Monitoring</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Role-Based Access Control</h4>
+          <p class="text-sm text-slate-400 mt-1">Logical access controls with role-based permissions</p>
+          <div class="mt-2 text-xs text-green-400">→ CC6.1: Logical and Physical Access</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">GOV-002</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Human-in-the-Loop Review</h4>
+          <p class="text-sm text-slate-400 mt-1">Management oversight of automated processes</p>
+          <div class="mt-2 text-xs text-green-400">→ CC3.1: COSO Principle 1 - Control Environment</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">AUD-001</span>
+            <span class="control-criticality criticality-critical">Critical</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Immutable Evidence Storage</h4>
+          <p class="text-sm text-slate-400 mt-1">Data integrity controls for audit records</p>
+          <div class="mt-2 text-xs text-green-400">→ CC7.1: Data Integrity and Completeness</div>
+        </div>
+        <div class="control-item">
+          <div class="control-header">
+            <span class="control-id">SEC-001</span>
+            <span class="control-criticality criticality-high">High</span>
+          </div>
+          <h4 class="font-semibold text-slate-200">Content Hash Privacy</h4>
+          <p class="text-sm text-slate-400 mt-1">Encryption and hashing for data protection</p>
+          <div class="mt-2 text-xs text-green-400">→ CC6.1: Logical Access Security</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Configuration
@@ -1148,6 +1731,13 @@ if result.action == "block":
 
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
+      // Don't navigate if modal is open
+      if (document.querySelector('.modal-overlay.active')) {
+        if (e.key === 'Escape') {
+          closeAllModals();
+        }
+        return;
+      }
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault();
         if (currentSlide < slides.length - 1) scrollToSlide(currentSlide + 1);
@@ -1156,6 +1746,29 @@ if result.action == "block":
         if (currentSlide > 0) scrollToSlide(currentSlide - 1);
       }
     });
+
+    // Modal functions
+    function openModal(modalId) {
+      const modal = document.getElementById('modal-' + modalId);
+      if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeModal(event, force = false) {
+      if (force || event.target.classList.contains('modal-overlay')) {
+        event.target.closest('.modal-overlay').classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function closeAllModals() {
+      document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+        modal.classList.remove('active');
+      });
+      document.body.style.overflow = '';
+    }
 
     // API Widget
     async function moderateText() {
