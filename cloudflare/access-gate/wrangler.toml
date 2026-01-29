@@ -1,0 +1,14 @@
+name = "civitas-access-gate"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# KV namespaces for auth flow
+kv_namespaces = [
+  { binding = "ACCESS_LOG", id = "cb2722db75bb40f7bdab29d91fa8a640" },
+  { binding = "MAGIC_TOKENS", id = "80ac0efcbe9a400fb33fbefeab517319" },
+  { binding = "SESSIONS", id = "a46156d78906424299a041b8369958ab" }
+]
+
+[vars]
+ACCESS_PASSWORD = "elevtr2026!"
+WORKER_URL = "https://civitas-access-gate.paul-roth.workers.dev"
