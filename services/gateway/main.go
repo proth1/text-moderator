@@ -60,8 +60,12 @@ func main() {
 	// Create HTTP server
 	router := setupRouter(cfg, logger)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.GatewayPort),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%s", cfg.GatewayPort),
+		Handler:           router,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server
@@ -160,6 +164,17 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 		v1.POST("/reviews/:id/action", proxyHandler(cfg, logger, "review", "/reviews/:id/action"))
 		v1.GET("/evidence", proxyHandler(cfg, logger, "review", "/evidence"))
 		v1.GET("/evidence/export", proxyHandler(cfg, logger, "review", "/evidence/export"))
+
+		// Webhook management proxy
+		v1.GET("/webhooks", proxyHandler(cfg, logger, "review", "/webhooks"))
+		v1.POST("/webhooks", proxyHandler(cfg, logger, "review", "/webhooks"))
+		v1.DELETE("/webhooks/:id", proxyHandler(cfg, logger, "review", "/webhooks/:id"))
+
+		// Compliance report generation proxy
+		v1.POST("/reports/generate", proxyHandler(cfg, logger, "review", "/reports/generate"))
+
+		// Batch moderation proxy
+		v1.POST("/moderate/batch", proxyHandler(cfg, logger, "moderation", "/moderate/batch"))
 	}
 
 	return router
@@ -197,6 +212,16 @@ func serviceBaseURL(cfg *config.Config, service string) string {
 	default:
 		return ""
 	}
+}
+
+// sharedHTTPClient is reused across all proxy requests for connection pooling.
+var sharedHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	},
 }
 
 func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path string) gin.HandlerFunc {
@@ -255,9 +280,8 @@ func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path s
 			proxyReq.Header.Set(internalServiceTokenHeader, cfg.InternalServiceToken)
 		}
 
-		// Send request
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Do(proxyReq)
+		// Send request using shared client with connection pooling
+		resp, err := sharedHTTPClient.Do(proxyReq)
 		if err != nil {
 			logger.Error("proxy request failed",
 				zap.Error(err),
@@ -269,8 +293,8 @@ func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path s
 		}
 		defer resp.Body.Close()
 
-		// Read response body
-		respBody, err := io.ReadAll(resp.Body)
+		// Read response body (bounded to 10MB to prevent memory exhaustion)
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 		if err != nil {
 			logger.Error("failed to read proxy response",
 				zap.Error(err),

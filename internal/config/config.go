@@ -48,6 +48,18 @@ type Config struct {
 	MaxContentLength     int
 	InternalServiceToken string // Shared secret for service-to-service auth
 
+	// Classification Providers
+	PerspectiveAPIKey    string
+	OpenAIAPIKey         string
+	CalibrationConfigJSON string // JSON string for per-provider score calibration
+	EnsembleEnabled      bool   // Enable ensemble mode (parallel multi-provider)
+	EnsembleStrategy     string // Ensemble strategy: "average", "median", "max"
+
+	// LLM Classification Provider (second-pass for ambiguous scores)
+	LLMProvider string // "anthropic" or "openai"
+	LLMAPIKey   string
+	LLMModel    string
+
 	// Logging
 	LogLevel string
 	LogJSON  bool
@@ -89,6 +101,18 @@ func Load() (*Config, error) {
 		ModerationURL:   getEnv("MODERATION_URL", ""),
 		PolicyEngineURL: getEnv("POLICY_ENGINE_URL", ""),
 		ReviewURL:       getEnv("REVIEW_URL", ""),
+
+		// Classification Providers
+		PerspectiveAPIKey:    getEnv("PERSPECTIVE_API_KEY", ""),
+		OpenAIAPIKey:         getEnv("OPENAI_API_KEY", ""),
+		CalibrationConfigJSON: getEnv("CALIBRATION_CONFIG_JSON", ""),
+		EnsembleEnabled:      getEnvAsBool("ENSEMBLE_ENABLED", false),
+		EnsembleStrategy:     getEnv("ENSEMBLE_STRATEGY", "average"),
+
+		// LLM Classification Provider
+		LLMProvider: getEnv("LLM_PROVIDER", ""),
+		LLMAPIKey:   getEnv("LLM_API_KEY", ""),
+		LLMModel:    getEnv("LLM_MODEL", ""),
 
 		// Security
 		AllowedOrigins:       getEnv("ALLOWED_ORIGINS", ""),

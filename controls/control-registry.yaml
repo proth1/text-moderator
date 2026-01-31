@@ -38,14 +38,39 @@ controls:
   - id: MOD-004
     name: Latency Optimization and Caching
     type: automated
-    description: Redis-based caching of moderation results by content hash
+    description: Redis-based caching of classification results by content hash
     framework_refs:
       - "NIST AI RMF – MEASURE"
     evidence: AUD-001
     implementation:
       service: moderation
-      function: tbd
-      file: tbd
+      function: moderateHandler
+      file: services/moderation/main.go
+
+  - id: MOD-005
+    name: Multi-Provider Classification Orchestration
+    type: automated
+    description: Routes classification to multiple ML providers with fallback chains
+    framework_refs:
+      - "NIST AI RMF – MAP"
+      - "ISO/IEC 42001 – Clause 8"
+    evidence: AUD-001
+    implementation:
+      service: moderation
+      function: Orchestrator.Classify
+      file: internal/classifier/orchestrator.go
+
+  - id: MOD-006
+    name: Batch Moderation API
+    type: automated
+    description: Processes multiple content items concurrently with worker pool
+    framework_refs:
+      - "NIST AI RMF – MAP"
+    evidence: AUD-001
+    implementation:
+      service: moderation
+      function: batchModerateHandler
+      file: services/moderation/main.go
 
   - id: POL-001
     name: Threshold-Based Moderation Policy
@@ -250,3 +275,52 @@ controls:
       service: tbd
       function: tbd
       file: tbd
+
+  - id: INT-001
+    name: Webhook Event Notification
+    type: integration
+    description: HMAC-signed webhook delivery with retry and exponential backoff
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-001
+    implementation:
+      service: review
+      function: Dispatcher.Dispatch
+      file: internal/webhook/dispatcher.go
+
+  - id: CMP-001
+    name: Compliance Report Generation
+    type: compliance
+    description: Generates SOC 2, ISO 42001, EU AI Act, and GDPR compliance reports
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+      - "ISO/IEC 42001 – Clause 9"
+    evidence: self
+    implementation:
+      service: review
+      function: Reporter.Generate
+      file: internal/compliance/reporter.go
+
+  - id: OBS-002
+    name: Prometheus Metrics
+    type: operational
+    description: Application-level metrics for moderation pipeline, providers, and webhooks
+    framework_refs:
+      - "NIST AI RMF – MEASURE"
+    evidence: self
+    implementation:
+      service: all
+      function: MetricsMiddleware
+      file: internal/observability/metrics.go
+
+  - id: SEC-004
+    name: Distributed Rate Limiting
+    type: security
+    description: Redis-backed sliding window rate limiting across service instances
+    framework_refs:
+      - "NIST AI RMF – GOV"
+    evidence: AUD-001
+    implementation:
+      service: gateway
+      function: RedisRateLimiter.Middleware
+      file: internal/middleware/ratelimit_redis.go

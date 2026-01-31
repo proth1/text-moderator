@@ -71,6 +71,9 @@ type CategoryScores struct {
 	SexualContent  float64 `json:"sexual_content"`
 	Violence       float64 `json:"violence"`
 	Profanity      float64 `json:"profanity"`
+	SelfHarm       float64 `json:"self_harm"`
+	Spam           float64 `json:"spam"`
+	PII            float64 `json:"pii"`
 }
 
 // TextSubmission represents a text submission for moderation
@@ -153,15 +156,16 @@ type ModerationRequest struct {
 
 // ModerationResponse represents the response from moderation
 type ModerationResponse struct {
-	DecisionID      uuid.UUID       `json:"decision_id"`
-	SubmissionID    uuid.UUID       `json:"submission_id"`
-	Action          PolicyAction    `json:"action"`
-	CategoryScores  CategoryScores  `json:"category_scores"`
-	Confidence      *float64        `json:"confidence,omitempty"`
-	Explanation     *string         `json:"explanation,omitempty"`
-	PolicyApplied   *string         `json:"policy_applied,omitempty"`
-	PolicyVersion   *int            `json:"policy_version,omitempty"`
-	RequiresReview  bool            `json:"requires_review"`
+	DecisionID       uuid.UUID       `json:"decision_id"`
+	SubmissionID     uuid.UUID       `json:"submission_id"`
+	Action           PolicyAction    `json:"action"`
+	CategoryScores   CategoryScores  `json:"category_scores"`
+	Confidence       *float64        `json:"confidence,omitempty"`
+	Explanation      *string         `json:"explanation,omitempty"`
+	PolicyApplied    *string         `json:"policy_applied,omitempty"`
+	PolicyVersion    *int            `json:"policy_version,omitempty"`
+	RequiresReview   bool            `json:"requires_review"`
+	DetectedLanguage string          `json:"detected_language,omitempty"`
 }
 
 // PolicyEvaluationRequest represents a request to evaluate scores against a policy
@@ -210,4 +214,103 @@ type HealthResponse struct {
 	Service string            `json:"service"`
 	Version string            `json:"version"`
 	Checks  map[string]string `json:"checks,omitempty"`
+}
+
+// --- Webhook Models ---
+// Control: INT-001 (Webhook event notification system)
+
+// WebhookEventType represents the type of event that triggers a webhook
+type WebhookEventType string
+
+const (
+	EventModerationCompleted WebhookEventType = "moderation.completed"
+	EventReviewRequired      WebhookEventType = "review.required"
+	EventReviewCompleted     WebhookEventType = "review.completed"
+	EventPolicyUpdated       WebhookEventType = "policy.updated"
+)
+
+// WebhookSubscription represents a registered webhook endpoint
+type WebhookSubscription struct {
+	ID          uuid.UUID          `json:"id" db:"id"`
+	URL         string             `json:"url" db:"url"`
+	Secret      string             `json:"-" db:"secret"` // Never exposed in JSON
+	EventTypes  []string           `json:"event_types" db:"event_types"`
+	Active      bool               `json:"active" db:"active"`
+	Description *string            `json:"description,omitempty" db:"description"`
+	CreatedBy   *uuid.UUID         `json:"created_by,omitempty" db:"created_by"`
+	CreatedAt   time.Time          `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at" db:"updated_at"`
+}
+
+// WebhookDelivery represents a single webhook delivery attempt
+type WebhookDelivery struct {
+	ID             uuid.UUID  `json:"id" db:"id"`
+	SubscriptionID uuid.UUID  `json:"subscription_id" db:"subscription_id"`
+	EventType      string     `json:"event_type" db:"event_type"`
+	Payload        string     `json:"payload" db:"payload"`
+	ResponseStatus *int       `json:"response_status,omitempty" db:"response_status"`
+	ResponseBody   *string    `json:"response_body,omitempty" db:"response_body"`
+	Attempt        int        `json:"attempt" db:"attempt"`
+	MaxAttempts    int        `json:"max_attempts" db:"max_attempts"`
+	NextRetryAt    *time.Time `json:"next_retry_at,omitempty" db:"next_retry_at"`
+	DeliveredAt    *time.Time `json:"delivered_at,omitempty" db:"delivered_at"`
+	FailedAt       *time.Time `json:"failed_at,omitempty" db:"failed_at"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+}
+
+// WebhookPayload is the standard payload sent to webhook endpoints
+type WebhookPayload struct {
+	ID        string           `json:"id"`
+	EventType WebhookEventType `json:"event_type"`
+	Timestamp time.Time        `json:"timestamp"`
+	Data      interface{}      `json:"data"`
+}
+
+// CreateWebhookRequest represents a request to create a webhook subscription
+type CreateWebhookRequest struct {
+	URL         string   `json:"url" binding:"required"`
+	EventTypes  []string `json:"event_types" binding:"required"`
+	Description string   `json:"description,omitempty"`
+}
+
+// --- Batch Moderation Models ---
+
+// BatchModerationRequest represents a request to moderate multiple items
+type BatchModerationRequest struct {
+	Items []BatchModerationItem `json:"items" binding:"required"`
+}
+
+// BatchModerationItem represents a single item in a batch moderation request
+type BatchModerationItem struct {
+	ID              string                 `json:"id"`
+	Content         string                 `json:"content" binding:"required"`
+	ContextMetadata map[string]interface{} `json:"context_metadata,omitempty"`
+	Source          string                 `json:"source,omitempty"`
+	PolicyID        *uuid.UUID             `json:"policy_id,omitempty"`
+}
+
+// BatchModerationResponse represents the response from batch moderation
+type BatchModerationResponse struct {
+	Results []BatchModerationResult `json:"results"`
+	Summary BatchSummary            `json:"summary"`
+}
+
+// BatchModerationResult represents a single result in a batch moderation response
+type BatchModerationResult struct {
+	ItemID         string              `json:"item_id"`
+	DecisionID     uuid.UUID           `json:"decision_id,omitempty"`
+	Action         PolicyAction        `json:"action,omitempty"`
+	CategoryScores *CategoryScores     `json:"category_scores,omitempty"`
+	RequiresReview bool                `json:"requires_review"`
+	Error          string              `json:"error,omitempty"`
+}
+
+// BatchSummary provides aggregate stats for the batch
+type BatchSummary struct {
+	Total     int `json:"total"`
+	Allowed   int `json:"allowed"`
+	Warned    int `json:"warned"`
+	Blocked   int `json:"blocked"`
+	Escalated int `json:"escalated"`
+	Failed    int `json:"failed"`
 }

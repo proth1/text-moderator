@@ -1,9 +1,13 @@
 -- Test Users
 -- Control: GOV-002 (User management and access control)
-INSERT INTO users (id, email, api_key, role, created_at, updated_at) VALUES
-('a0000000-0000-0000-0000-000000000001', 'admin@civitas.test', 'tk_admin_test_key_001', 'admin', NOW(), NOW()),
-('a0000000-0000-0000-0000-000000000002', 'moderator@civitas.test', 'tk_mod_test_key_002', 'moderator', NOW(), NOW()),
-('a0000000-0000-0000-0000-000000000003', 'viewer@civitas.test', 'tk_viewer_test_key_003', 'viewer', NOW(), NOW());
+-- API keys stored as SHA-256 hashes (SECURITY: never store plaintext keys)
+-- tk_admin_test_key_001 -> sha256 hash
+-- tk_mod_test_key_002 -> sha256 hash
+-- tk_viewer_test_key_003 -> sha256 hash
+INSERT INTO users (id, email, api_key_hash, role, created_at, updated_at) VALUES
+('a0000000-0000-0000-0000-000000000001', 'admin@civitas.test', encode(sha256('tk_admin_test_key_001'::bytea), 'hex'), 'admin', NOW(), NOW()),
+('a0000000-0000-0000-0000-000000000002', 'moderator@civitas.test', encode(sha256('tk_mod_test_key_002'::bytea), 'hex'), 'moderator', NOW(), NOW()),
+('a0000000-0000-0000-0000-000000000003', 'viewer@civitas.test', encode(sha256('tk_viewer_test_key_003'::bytea), 'hex'), 'viewer', NOW(), NOW());
 
 -- Test Policies
 -- Control: POL-001 (Policy definition and versioning)

@@ -6,16 +6,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/proth1/text-moderator/internal/compliance"
 	"github.com/proth1/text-moderator/internal/config"
+	"github.com/proth1/text-moderator/internal/feedback"
 	"github.com/proth1/text-moderator/internal/database"
 	"github.com/proth1/text-moderator/internal/evidence"
 	"github.com/proth1/text-moderator/internal/middleware"
 	"github.com/proth1/text-moderator/internal/models"
+	"github.com/proth1/text-moderator/internal/webhook"
 	"go.uber.org/zap"
 )
 
@@ -58,11 +62,24 @@ func main() {
 	// Initialize evidence writer
 	evidenceWriter := evidence.NewWriter(db.Pool, logger)
 
+	// Initialize webhook dispatcher
+	webhookDispatcher := webhook.NewDispatcher(db.Pool, logger)
+
+	// Initialize feedback tracker for calibration loop
+	feedbackTracker := feedback.NewTracker(db.Pool, logger)
+
+	// Initialize compliance reporter
+	complianceReporter := compliance.NewReporter(db.Pool, logger)
+
 	// Create HTTP server
-	router := setupRouter(cfg, logger, db, evidenceWriter)
+	router := setupRouter(cfg, logger, db, evidenceWriter, webhookDispatcher, complianceReporter, feedbackTracker)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.ReviewPort),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%s", cfg.ReviewPort),
+		Handler:           router,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server
@@ -91,7 +108,7 @@ func main() {
 	logger.Info("review service stopped")
 }
 
-func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evidenceWriter *evidence.Writer) *gin.Engine {
+func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evidenceWriter *evidence.Writer, webhookDispatcher *webhook.Dispatcher, complianceReporter *compliance.Reporter, feedbackTracker *feedback.Tracker) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -110,11 +127,19 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 	{
 		api.GET("/reviews", middleware.RequireRole("admin", "moderator"), listReviewsHandler(db, logger))
 		api.GET("/reviews/:id", middleware.RequireRole("admin", "moderator"), getReviewHandler(db, logger))
-		api.POST("/reviews/:id/action", middleware.RequireRole("admin", "moderator"), submitReviewActionHandler(db, evidenceWriter, logger))
+		api.POST("/reviews/:id/action", middleware.RequireRole("admin", "moderator"), submitReviewActionHandler(db, evidenceWriter, feedbackTracker, logger))
 
 		// Evidence endpoints
 		api.GET("/evidence", middleware.RequireRole("admin"), listEvidenceHandler(evidenceWriter))
 		api.GET("/evidence/export", middleware.RequireRole("admin"), exportEvidenceHandler(evidenceWriter))
+
+		// Webhook management endpoints
+		api.GET("/webhooks", middleware.RequireRole("admin"), listWebhooksHandler(webhookDispatcher))
+		api.POST("/webhooks", middleware.RequireRole("admin"), createWebhookHandler(webhookDispatcher, logger))
+		api.DELETE("/webhooks/:id", middleware.RequireRole("admin"), deleteWebhookHandler(webhookDispatcher, logger))
+
+		// Compliance report generation
+		api.POST("/reports/generate", middleware.RequireRole("admin"), generateReportHandler(complianceReporter, logger))
 	}
 
 	return router
@@ -129,7 +154,7 @@ func healthHandler(db *database.PostgresDB) gin.HandlerFunc {
 
 		// Check database
 		if err := db.Health(ctx); err != nil {
-			checks["database"] = "unhealthy: " + err.Error()
+			checks["database"] = "unhealthy"
 		} else {
 			checks["database"] = "healthy"
 		}
@@ -263,7 +288,7 @@ func getReviewHandler(db *database.PostgresDB, logger *zap.Logger) gin.HandlerFu
 	}
 }
 
-func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence.Writer, logger *zap.Logger) gin.HandlerFunc {
+func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence.Writer, feedbackTracker *feedback.Tracker, logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		decisionID, err := uuid.Parse(c.Param("id"))
 		if err != nil {
@@ -341,6 +366,9 @@ func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence
 			// Don't fail the request, but log the error
 		}
 
+		// Record feedback for calibration loop (async)
+		go feedbackTracker.RecordFeedback(context.Background(), &decision, req.Action)
+
 		c.JSON(http.StatusCreated, review)
 	}
 }
@@ -355,7 +383,21 @@ func listEvidenceHandler(evidenceWriter *evidence.Writer) gin.HandlerFunc {
 			controlIDPtr = &controlID
 		}
 
-		records, err := evidenceWriter.ListEvidence(ctx, controlIDPtr, 100, 0)
+		// Parse pagination with safe defaults and max limits
+		limit := 100
+		offset := 0
+		if l := c.Query("limit"); l != "" {
+			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+				limit = parsed
+			}
+		}
+		if o := c.Query("offset"); o != "" {
+			if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+				offset = parsed
+			}
+		}
+
+		records, err := evidenceWriter.ListEvidence(ctx, controlIDPtr, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list evidence"})
 			return
@@ -375,7 +417,7 @@ func exportEvidenceHandler(evidenceWriter *evidence.Writer) gin.HandlerFunc {
 			controlIDPtr = &controlID
 		}
 
-		records, err := evidenceWriter.ListEvidence(ctx, controlIDPtr, 10000, 0)
+		records, err := evidenceWriter.ListEvidence(ctx, controlIDPtr, 5000, 0)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to export evidence"})
 			return
@@ -386,5 +428,121 @@ func exportEvidenceHandler(evidenceWriter *evidence.Writer) gin.HandlerFunc {
 		c.Header("Content-Disposition", "attachment; filename=evidence_export.json")
 
 		c.JSON(http.StatusOK, records)
+	}
+}
+
+// --- Webhook Management Handlers ---
+
+func listWebhooksHandler(dispatcher *webhook.Dispatcher) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		subs, err := dispatcher.ListSubscriptions(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list webhooks"})
+			return
+		}
+		c.JSON(http.StatusOK, subs)
+	}
+}
+
+func createWebhookHandler(dispatcher *webhook.Dispatcher, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req models.CreateWebhookRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+
+		// Validate event types
+		validTypes := map[string]bool{
+			string(models.EventModerationCompleted): true,
+			string(models.EventReviewRequired):      true,
+			string(models.EventReviewCompleted):      true,
+			string(models.EventPolicyUpdated):        true,
+		}
+		for _, et := range req.EventTypes {
+			if !validTypes[et] {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid event type: %s", et)})
+				return
+			}
+		}
+
+		userID := middleware.MustGetUserID(c)
+		sub, err := dispatcher.CreateSubscription(c.Request.Context(), &req, &userID)
+		if err != nil {
+			logger.Error("failed to create webhook", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create webhook"})
+			return
+		}
+
+		// Return the subscription including the secret (only shown once at creation)
+		c.JSON(http.StatusCreated, gin.H{
+			"id":          sub.ID,
+			"url":         sub.URL,
+			"secret":      sub.Secret,
+			"event_types": sub.EventTypes,
+			"active":      sub.Active,
+			"created_at":  sub.CreatedAt,
+			"message":     "Store the secret securely - it will not be shown again",
+		})
+	}
+}
+
+func deleteWebhookHandler(dispatcher *webhook.Dispatcher, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid webhook ID"})
+			return
+		}
+
+		if err := dispatcher.DeleteSubscription(c.Request.Context(), id); err != nil {
+			logger.Error("failed to delete webhook", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete webhook"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "deactivated"})
+	}
+}
+
+// --- Compliance Report Handler ---
+
+func generateReportHandler(reporter *compliance.Reporter, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req compliance.ReportRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+
+		// Validate report type
+		validTypes := map[compliance.ReportType]bool{
+			compliance.ReportSOC2:     true,
+			compliance.ReportISO42001: true,
+			compliance.ReportEUAIAct:  true,
+			compliance.ReportGDPR:     true,
+		}
+		if !validTypes[req.Type] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":       "invalid report type",
+				"valid_types": []string{"soc2", "iso42001", "eu-ai-act", "gdpr"},
+			})
+			return
+		}
+
+		report, err := reporter.Generate(c.Request.Context(), req)
+		if err != nil {
+			logger.Error("failed to generate compliance report", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate report"})
+			return
+		}
+
+		// Return HTML if requested, otherwise JSON
+		if c.GetHeader("Accept") == "text/html" {
+			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(report.HTMLContent))
+			return
+		}
+
+		c.JSON(http.StatusOK, report)
 	}
 }
