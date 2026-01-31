@@ -1529,8 +1529,185 @@ if result.action == "block":
     </div>
   </section>
 
-  <!-- Slide 18: Call to Action -->
+  <!-- Slide 18: Release History Title -->
   <section class="slide" id="slide-18">
+    <div class="max-w-4xl mx-auto text-center">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
+      <h1 class="text-5xl font-bold mb-4">Release History</h1>
+      <p class="text-xl text-slate-400 mb-8">Platform Changelog & Version Tracking</p>
+      <div class="inline-block bg-gradient-to-r from-blue-500/10 to-green-500/10 border border-blue-500/20 rounded-xl px-8 py-4">
+        <p class="text-lg">
+          <strong>Current Version:</strong> <span class="text-green-400">2026.01.2</span>
+          <span class="mx-4 text-slate-600">|</span>
+          <strong>Last Release:</strong> January 30, 2026
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 19: Current Release Details -->
+  <section class="slide" id="slide-19">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-3xl font-bold mb-2">Release 2026.01.2</h2>
+      <p class="text-slate-400 text-sm mb-6">January 30, 2026 &bull; Major Feature Release</p>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Highlights -->
+        <div class="rounded-xl p-5" style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2);">
+          <h4 class="text-green-400 font-semibold mb-3">✨ Highlights</h4>
+          <ul class="text-sm text-slate-300 space-y-2">
+            <li>9 language filtering enhancements across 4 phases</li>
+            <li>Multi-language detection via lingua-go</li>
+            <li>Ensemble multi-provider classification</li>
+            <li>LLM second-pass for ambiguous scores</li>
+            <li>User behavioral trust scoring</li>
+          </ul>
+        </div>
+
+        <!-- Work Items -->
+        <div class="rounded-xl p-5" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+          <h4 class="text-blue-400 font-semibold mb-3">Work Items</h4>
+          <div class="flex flex-wrap gap-2 mb-3">
+            <span class="bg-blue-500 text-white text-xs px-3 py-1 rounded-md font-medium">PR #5</span>
+            <span class="bg-blue-500 text-white text-xs px-3 py-1 rounded-md font-medium">Issue #5</span>
+          </div>
+          <div class="text-xs text-slate-400 mt-3">
+            <strong>Files:</strong> 57 changed (+4,751 / -118)
+          </div>
+          <div class="text-xs text-slate-400 mt-1">
+            <strong>Tests:</strong> 38 new unit tests passing
+          </div>
+        </div>
+      </div>
+
+      <!-- Changes Table -->
+      <div class="rounded-xl overflow-hidden" style="background: var(--card-bg);">
+        <table class="w-full text-sm" style="border-collapse: collapse;">
+          <thead>
+            <tr style="background: rgba(59, 130, 246, 0.1);">
+              <th class="text-left px-4 py-3 font-semibold">Area</th>
+              <th class="text-left px-4 py-3 font-semibold">Change</th>
+              <th class="text-left px-4 py-3 font-semibold">Impact</th>
+            </tr>
+          </thead>
+          <tbody class="text-slate-300">
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">Classification</td>
+              <td class="px-4 py-2">Expand CategoryScores: SelfHarm, Spam, PII</td>
+              <td class="px-4 py-2"><span class="text-green-400">3 new categories</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">Security</td>
+              <td class="px-4 py-2">Text normalizer: NFKC, homoglyphs, leetspeak</td>
+              <td class="px-4 py-2"><span class="text-green-400">Evasion defense</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">i18n</td>
+              <td class="px-4 py-2">Language detection + language-aware routing</td>
+              <td class="px-4 py-2"><span class="text-green-400">Multi-language support</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">Policy</td>
+              <td class="px-4 py-2">Context-aware evaluation + trust scoring</td>
+              <td class="px-4 py-2"><span class="text-green-400">Adaptive thresholds</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">Infrastructure</td>
+              <td class="px-4 py-2">Ensemble mode, calibration, feedback loop</td>
+              <td class="px-4 py-2"><span class="text-green-400">Self-improving pipeline</span></td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2">Database</td>
+              <td class="px-4 py-2">4 migrations (009-012)</td>
+              <td class="px-4 py-2"><span class="text-blue-400">Schema expansion</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 20: Version History -->
+  <section class="slide" id="slide-20">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-3xl font-bold mb-6">Version History</h2>
+
+      <div class="rounded-xl overflow-hidden mb-6" style="background: var(--card-bg);">
+        <table class="w-full text-sm" style="border-collapse: collapse;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(34, 197, 94, 0.1));">
+              <th class="text-left px-4 py-3 font-semibold">Version</th>
+              <th class="text-left px-4 py-3 font-semibold">Date</th>
+              <th class="text-left px-4 py-3 font-semibold">Type</th>
+              <th class="text-left px-4 py-3 font-semibold">Key Changes</th>
+            </tr>
+          </thead>
+          <tbody class="text-slate-300">
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-green-500 text-white text-xs px-2 py-1 rounded font-semibold">2026.01.2</span></td>
+              <td class="px-4 py-2">Jan 30</td>
+              <td class="px-4 py-2"><span class="text-green-400">Feature</span></td>
+              <td class="px-4 py-2">9 language filtering enhancements, ensemble mode, LLM second-pass</td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-semibold">2026.01.1</span></td>
+              <td class="px-4 py-2">Jan 29</td>
+              <td class="px-4 py-2"><span class="text-blue-400">Platform</span></td>
+              <td class="px-4 py-2">Helix SDLC integration, GitHub Issues PM, regulatory modals</td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-red-500 text-white text-xs px-2 py-1 rounded font-semibold">2026.01.0</span></td>
+              <td class="px-4 py-2">Jan 29</td>
+              <td class="px-4 py-2"><span class="text-red-400">Security</span></td>
+              <td class="px-4 py-2">10 vulnerability fixes, production config, dependency updates</td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-yellow-500 text-black text-xs px-2 py-1 rounded font-semibold">2026.0.9</span></td>
+              <td class="px-4 py-2">Jan 28</td>
+              <td class="px-4 py-2"><span class="text-yellow-400">UI</span></td>
+              <td class="px-4 py-2">Dark theme overhaul, presentation enhancements, knowledge graph</td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-semibold">2026.0.8</span></td>
+              <td class="px-4 py-2">Jan 28</td>
+              <td class="px-4 py-2"><span class="text-blue-400">Infrastructure</span></td>
+              <td class="px-4 py-2">Magic link auth, access gate worker, Resend email integration</td>
+            </tr>
+            <tr style="border-top: 1px solid #334155;">
+              <td class="px-4 py-2"><span class="bg-green-500 text-white text-xs px-2 py-1 rounded font-semibold">2026.0.7</span></td>
+              <td class="px-4 py-2">Jan 28</td>
+              <td class="px-4 py-2"><span class="text-green-400">Feature</span></td>
+              <td class="px-4 py-2">Initial platform: Go microservices, React UI, Docker Compose, CDD controls</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="rounded-xl p-5" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+          <h4 class="text-blue-400 font-semibold mb-2">Versioning: CalVer</h4>
+          <p class="text-sm text-slate-400">Format: <code class="bg-blue-500/10 px-2 py-0.5 rounded">YYYY.MM.release</code></p>
+          <ul class="text-xs text-slate-400 mt-2 space-y-1">
+            <li><strong>YYYY</strong> &mdash; Year (2026)</li>
+            <li><strong>MM</strong> &mdash; Month (01-12)</li>
+            <li><strong>release</strong> &mdash; Release # within month</li>
+          </ul>
+        </div>
+        <div class="rounded-xl p-5" style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2);">
+          <h4 class="text-green-400 font-semibold mb-2">Platform Stats</h4>
+          <div class="grid grid-cols-2 gap-2 text-sm text-slate-300">
+            <div><strong>Services:</strong> 5</div>
+            <div><strong>Migrations:</strong> 12</div>
+            <div><strong>Controls:</strong> 14</div>
+            <div><strong>Unit Tests:</strong> 38+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 21: Call to Action -->
+  <section class="slide" id="slide-21">
     <div class="max-w-4xl mx-auto text-center">
       <h2 class="text-5xl font-bold mb-6">Get Started</h2>
       <p class="text-xl text-slate-400 mb-8">
