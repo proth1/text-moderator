@@ -529,10 +529,11 @@ export default {
       case '/validate-token': {
         // Validate auth token from URL parameter (called by Pages Functions)
         const token = url.searchParams.get('token');
+        const allowedOrigin = url.origin;
         if (!token) {
           return new Response(JSON.stringify({ valid: false, error: 'Missing token' }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': allowedOrigin },
           });
         }
 
@@ -540,12 +541,12 @@ export default {
         if (!sessionData) {
           return new Response(JSON.stringify({ valid: false, error: 'Invalid or expired token' }), {
             status: 401,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': allowedOrigin },
           });
         }
 
         return new Response(JSON.stringify({ valid: true, ...JSON.parse(sessionData) }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': allowedOrigin },
         });
       }
 
