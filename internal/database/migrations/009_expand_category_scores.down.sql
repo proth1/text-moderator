@@ -1,0 +1,3 @@
+-- Rollback Migration 009: Remove expanded CategoryScores fields
+-- Note: We don't remove the JSONB keys from existing rows as it's non-destructive
+-- and Go will ignore unknown fields on deserialization.

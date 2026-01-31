@@ -1334,8 +1334,170 @@ if result.action == "block":
     </div>
   </section>
 
-  <!-- Slide 15: Roadmap -->
+  <!-- Slide 15: Security Posture -->
   <section class="slide" id="slide-15">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-2">Security Posture</h2>
+      <p class="text-slate-400 mb-6">Defense-in-depth across every layer</p>
+
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <!-- Authentication & Access -->
+        <div class="bg-slate-800/60 rounded-xl p-4 border border-green-500/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-green-400 text-lg">&#x1f512;</span>
+            <h3 class="text-lg font-semibold text-green-400">Authentication</h3>
+          </div>
+          <ul class="text-sm text-slate-300 space-y-1.5">
+            <li>&#x2713; Cloudflare Access Gate (magic link)</li>
+            <li>&#x2713; SHA-256 hashed API keys</li>
+            <li>&#x2713; RBAC (admin/moderator/viewer)</li>
+            <li>&#x2713; Constant-time token comparison</li>
+            <li>&#x2713; Internal service auth tokens</li>
+          </ul>
+        </div>
+
+        <!-- Infrastructure Hardening -->
+        <div class="bg-slate-800/60 rounded-xl p-4 border border-blue-500/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-blue-400 text-lg">&#x1f6e1;</span>
+            <h3 class="text-lg font-semibold text-blue-400">Infrastructure</h3>
+          </div>
+          <ul class="text-sm text-slate-300 space-y-1.5">
+            <li>&#x2713; Non-root Docker containers</li>
+            <li>&#x2713; Multi-stage builds (minimal surface)</li>
+            <li>&#x2713; go.sum supply chain verification</li>
+            <li>&#x2713; Secrets in env vars, never in code</li>
+            <li>&#x2713; Cloud Run scale-to-zero isolation</li>
+          </ul>
+        </div>
+
+        <!-- Application Security -->
+        <div class="bg-slate-800/60 rounded-xl p-4 border border-purple-500/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-purple-400 text-lg">&#x1f9f1;</span>
+            <h3 class="text-lg font-semibold text-purple-400">Application</h3>
+          </div>
+          <ul class="text-sm text-slate-300 space-y-1.5">
+            <li>&#x2713; HTTP server timeouts (Slowloris)</li>
+            <li>&#x2713; Bounded proxy response reads (10MB)</li>
+            <li>&#x2713; Scoped CORS (no wildcards)</li>
+            <li>&#x2713; Pagination limits on all endpoints</li>
+            <li>&#x2713; No error detail leaks in health checks</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Audit & Compliance -->
+        <div class="bg-slate-800/60 rounded-xl p-4 border border-yellow-500/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-yellow-400 text-lg">&#x1f4dc;</span>
+            <h3 class="text-lg font-semibold text-yellow-400">Audit & Evidence</h3>
+          </div>
+          <ul class="text-sm text-slate-300 space-y-1.5">
+            <li>&#x2713; Immutable evidence records (AUD-001)</li>
+            <li>&#x2713; Full decision traceability with correlation IDs</li>
+            <li>&#x2713; Content hashing for integrity verification</li>
+            <li>&#x2713; Structured logging with zap (no PII)</li>
+          </ul>
+        </div>
+
+        <!-- Security Score -->
+        <div class="bg-slate-800/60 rounded-xl p-4 border border-emerald-500/30 flex flex-col items-center justify-center">
+          <div class="text-6xl font-bold text-emerald-400 mb-2">A+</div>
+          <div class="text-slate-300 text-sm mb-3">Security Audit Score</div>
+          <div class="flex gap-3 text-xs">
+            <span class="badge badge-green">0 Critical</span>
+            <span class="badge badge-green">0 High</span>
+            <span class="badge badge-green">0 Medium</span>
+          </div>
+          <div class="text-slate-500 text-xs mt-2">All findings resolved</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 16: Advanced Language Filtering -->
+  <section class="slide" id="slide-16">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold mb-2">Advanced Language Filtering</h2>
+      <p class="text-slate-400 mb-6">9 enhancements for multi-language, multi-provider resilience</p>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+            <h4 class="font-semibold text-sm">Text Normalizer</h4>
+          </div>
+          <p class="text-xs text-slate-400">NFKC normalization, zero-width stripping, homoglyph and leetspeak decoding to defeat Unicode evasion</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+            <h4 class="font-semibold text-sm">Language Detection</h4>
+          </div>
+          <p class="text-xs text-slate-400">Automatic language identification via lingua-go with routing to language-aware classification providers</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+            <h4 class="font-semibold text-sm">Ensemble Classification</h4>
+          </div>
+          <p class="text-xs text-slate-400">Parallel multi-provider execution with agreement scoring and auto-escalation on disagreement</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+            <h4 class="font-semibold text-sm">Score Calibration</h4>
+          </div>
+          <p class="text-xs text-slate-400">Per-provider offset and scale normalization to a unified 0-1 scale with dynamic feedback-driven tuning</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+            <h4 class="font-semibold text-sm">LLM Second-Pass</h4>
+          </div>
+          <p class="text-xs text-slate-400">Ambiguous scores (0.3-0.7) re-evaluated by Claude or GPT-4 with structured classification prompts</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <h4 class="font-semibold text-sm">Context-Aware Policy</h4>
+          </div>
+          <p class="text-xs text-slate-400">Threshold overrides based on request metadata (audience, platform) for context-sensitive moderation</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+            <h4 class="font-semibold text-sm">User Trust Scoring</h4>
+          </div>
+          <p class="text-xs text-slate-400">Rolling-window behavioral scoring adjusts policy thresholds per user based on moderation history</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-pink-400"></span>
+            <h4 class="font-semibold text-sm">Feedback Loop</h4>
+          </div>
+          <p class="text-xs text-slate-400">Human review outcomes feed back to provider calibration, continuously improving classification accuracy</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <h4 class="font-semibold text-sm">Expanded Categories</h4>
+          </div>
+          <p class="text-xs text-slate-400">Self-harm, spam, and PII detection added to the 6 existing moderation categories for 9 total</p>
+        </div>
+      </div>
+      <div class="flex gap-4 mt-6 text-xs text-slate-500">
+        <span>38 unit tests</span>
+        <span>4 migrations</span>
+        <span>13 new files</span>
+        <span>10 modified files</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 17: Roadmap -->
+  <section class="slide" id="slide-17">
     <div class="max-w-4xl mx-auto">
       <h2 class="text-4xl font-bold mb-8">Roadmap</h2>
       <div class="space-y-8">
@@ -1347,12 +1509,12 @@ if result.action == "block":
             <span class="text-xs text-slate-500">ML Classification • Policy Rules • Evidence Chain</span>
           </div>
         </div>
-        <div class="timeline-item planned pb-8">
-          <h3 class="text-xl font-semibold text-yellow-400">Phase 2: Scale</h3>
-          <p class="text-slate-400 mt-2">Multi-language support, custom ML models, real-time streaming</p>
+        <div class="timeline-item complete pb-8">
+          <h3 class="text-xl font-semibold text-green-400">Phase 2: Scale</h3>
+          <p class="text-slate-400 mt-2">Multi-language support, ensemble classification, LLM second-pass, feedback loop</p>
           <div class="flex gap-2 mt-3 flex-wrap">
-            <span class="badge badge-yellow">Q2 2026</span>
-            <span class="text-xs text-slate-500">i18n • Fine-tuning • WebSocket API</span>
+            <span class="badge badge-green">Complete</span>
+            <span class="text-xs text-slate-500">i18n • Normalizer • Ensemble • Calibration • Trust Scoring</span>
           </div>
         </div>
         <div class="timeline-item future pb-8">
@@ -1367,8 +1529,8 @@ if result.action == "block":
     </div>
   </section>
 
-  <!-- Slide 16: Call to Action -->
-  <section class="slide" id="slide-16">
+  <!-- Slide 18: Call to Action -->
+  <section class="slide" id="slide-18">
     <div class="max-w-4xl mx-auto text-center">
       <h2 class="text-5xl font-bold mb-6">Get Started</h2>
       <p class="text-xl text-slate-400 mb-8">

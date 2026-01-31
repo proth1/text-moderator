@@ -61,8 +61,12 @@ func main() {
 	// Create HTTP server
 	router := setupRouter(cfg, logger, db, evaluator)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.PolicyEnginePort),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%s", cfg.PolicyEnginePort),
+		Handler:           router,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server
@@ -254,7 +258,7 @@ func evaluatePolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 
 		ctx := c.Request.Context()
 
-		result, err := evaluator.EvaluateScores(ctx, &req.CategoryScores, policyID)
+		result, err := evaluator.EvaluateScores(ctx, &req.CategoryScores, policyID, nil)
 		if err != nil {
 			// SECURITY: Don't expose internal error details
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to evaluate policy"})

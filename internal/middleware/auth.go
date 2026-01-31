@@ -2,6 +2,9 @@ package middleware
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"net/http"
 	"strings"
 
@@ -43,13 +46,14 @@ func AuthMiddleware(db *pgxpool.Pool, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
-		// Query user by API key
+		// Query user by hashed API key (SHA-256)
 		ctx := c.Request.Context()
 		var userID uuid.UUID
 		var userRole string
 
-		query := `SELECT id, role FROM users WHERE api_key = $1`
-		err := db.QueryRow(ctx, query, apiKey).Scan(&userID, &userRole)
+		apiKeyHash := HashAPIKey(apiKey)
+		query := `SELECT id, role FROM users WHERE api_key_hash = $1`
+		err := db.QueryRow(ctx, query, apiKeyHash).Scan(&userID, &userRole)
 		if err != nil {
 			logger.Warn("invalid API key",
 				zap.String("error", err.Error()),
@@ -139,13 +143,23 @@ func GetUserRole(c *gin.Context) (string, bool) {
 	return role.(string), true
 }
 
-// MustGetUserID retrieves the user ID from context or panics
+// MustGetUserID retrieves the user ID from context.
+// Returns uuid.Nil and aborts with 401 if not found (no panic).
 func MustGetUserID(c *gin.Context) uuid.UUID {
 	userID, exists := GetUserID(c)
 	if !exists {
-		panic("user ID not found in context")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		c.Abort()
+		return uuid.Nil
 	}
 	return userID
+}
+
+// HashAPIKey returns the SHA-256 hex digest of an API key.
+// Used for secure storage: the database stores hashes, never plaintext keys.
+func HashAPIKey(apiKey string) string {
+	h := sha256.Sum256([]byte(apiKey))
+	return hex.EncodeToString(h[:])
 }
 
 // WithUserContext adds user information to a standard context
@@ -208,14 +222,8 @@ func InternalServiceAuthMiddleware(expectedToken string, logger *zap.Logger) gin
 	}
 }
 
-// secureCompare performs constant-time string comparison to prevent timing attacks
+// secureCompare performs constant-time string comparison to prevent timing attacks.
+// Uses crypto/subtle.ConstantTimeCompare which handles length mismatches safely.
 func secureCompare(a, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	var result byte
-	for i := 0; i < len(a); i++ {
-		result |= a[i] ^ b[i]
-	}
-	return result == 0
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

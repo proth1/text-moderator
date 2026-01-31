@@ -17,7 +17,7 @@ func TestMOD001_AutomatedClassification(t *testing.T) {
 	db, cleanup := helpers.SetupTestDB(t)
 	defer cleanup()
 
-	redis, redisCleanup := helpers.SetupTestRedis(t)
+	_, redisCleanup := helpers.SetupTestRedis(t)
 	defer redisCleanup()
 
 	ctx := context.Background()

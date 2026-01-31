@@ -12,6 +12,20 @@ import (
 
 // Control: POL-001 (Deterministic policy evaluation)
 
+// EvaluationOptions provides optional context for policy evaluation.
+type EvaluationOptions struct {
+	// ContextMetadata from the moderation request (e.g., audience, platform).
+	ContextMetadata map[string]interface{}
+	// TrustScore from user behavioral scoring (0.0-1.0, nil if not available).
+	TrustScore *float64
+}
+
+// ContextOverride defines a threshold adjustment based on context metadata matching.
+type ContextOverride struct {
+	Match                map[string]interface{} `json:"match"`
+	ThresholdAdjustments map[string]float64     `json:"threshold_adjustments"`
+}
+
 // Evaluator handles policy evaluation logic
 type Evaluator struct {
 	db     *pgxpool.Pool
@@ -31,8 +45,9 @@ func (e *Evaluator) Pool() *pgxpool.Pool {
 	return e.db
 }
 
-// EvaluateScores evaluates category scores against a policy
-func (e *Evaluator) EvaluateScores(ctx context.Context, scores *models.CategoryScores, policyID uuid.UUID) (*models.PolicyEvaluationResponse, error) {
+// EvaluateScores evaluates category scores against a policy.
+// Pass nil for opts if no context or trust score adjustments are needed.
+func (e *Evaluator) EvaluateScores(ctx context.Context, scores *models.CategoryScores, policyID uuid.UUID, opts *EvaluationOptions) (*models.PolicyEvaluationResponse, error) {
 	// Fetch policy from database
 	policy, err := e.getPolicy(ctx, policyID)
 	if err != nil {
@@ -41,6 +56,32 @@ func (e *Evaluator) EvaluateScores(ctx context.Context, scores *models.CategoryS
 
 	if policy.Status != models.PolicyStatusPublished {
 		return nil, fmt.Errorf("policy %s is not published (status: %s)", policyID, policy.Status)
+	}
+
+	// Build effective thresholds (start from policy defaults)
+	effectiveThresholds := make(map[string]float64, len(policy.Thresholds))
+	for k, v := range policy.Thresholds {
+		effectiveThresholds[k] = v
+	}
+
+	// Apply context-aware overrides from policy scope
+	if opts != nil && opts.ContextMetadata != nil {
+		e.applyContextOverrides(effectiveThresholds, policy.Scope, opts.ContextMetadata)
+	}
+
+	// Apply trust score adjustments (low trust = stricter thresholds)
+	if opts != nil && opts.TrustScore != nil {
+		trust := *opts.TrustScore
+		if trust < 0.5 {
+			// Lower thresholds for untrusted users (stricter)
+			adjustment := (0.5 - trust) * 0.2 // max 0.1 reduction at trust=0
+			for k, v := range effectiveThresholds {
+				effectiveThresholds[k] = v - adjustment
+				if effectiveThresholds[k] < 0.1 {
+					effectiveThresholds[k] = 0.1
+				}
+			}
+		}
 	}
 
 	// Evaluate each category against thresholds
@@ -54,10 +95,13 @@ func (e *Evaluator) EvaluateScores(ctx context.Context, scores *models.CategoryS
 		"sexual_content":  scores.SexualContent,
 		"violence":        scores.Violence,
 		"profanity":       scores.Profanity,
+		"self_harm":       scores.SelfHarm,
+		"spam":            scores.Spam,
+		"pii":             scores.PII,
 	}
 
 	for category, score := range categories {
-		threshold, hasThreshold := policy.Thresholds[category]
+		threshold, hasThreshold := effectiveThresholds[category]
 		if !hasThreshold {
 			continue
 		}
@@ -91,6 +135,85 @@ func (e *Evaluator) EvaluateScores(ctx context.Context, scores *models.CategoryS
 		PolicyVersion:  policy.Version,
 		TriggeredRules: triggeredRules,
 	}, nil
+}
+
+// applyContextOverrides adjusts thresholds based on policy scope context_overrides and request metadata.
+func (e *Evaluator) applyContextOverrides(thresholds map[string]float64, scope map[string]interface{}, metadata map[string]interface{}) {
+	if scope == nil {
+		return
+	}
+
+	overridesRaw, ok := scope["context_overrides"]
+	if !ok {
+		return
+	}
+
+	overrides, ok := overridesRaw.([]interface{})
+	if !ok {
+		return
+	}
+
+	for _, overrideRaw := range overrides {
+		override, ok := overrideRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		matchRaw, ok := override["match"]
+		if !ok {
+			continue
+		}
+		match, ok := matchRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Check if all match conditions are met
+		allMatch := true
+		for key, expected := range match {
+			actual, exists := metadata[key]
+			if !exists || fmt.Sprintf("%v", actual) != fmt.Sprintf("%v", expected) {
+				allMatch = false
+				break
+			}
+		}
+
+		if !allMatch {
+			continue
+		}
+
+		// Apply threshold adjustments
+		adjustmentsRaw, ok := override["threshold_adjustments"]
+		if !ok {
+			continue
+		}
+		adjustments, ok := adjustmentsRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		for category, adjRaw := range adjustments {
+			adj, ok := adjRaw.(float64)
+			if !ok {
+				continue
+			}
+			if currentThreshold, exists := thresholds[category]; exists {
+				newThreshold := currentThreshold + adj
+				if newThreshold < 0.05 {
+					newThreshold = 0.05
+				}
+				if newThreshold > 1.0 {
+					newThreshold = 1.0
+				}
+				thresholds[category] = newThreshold
+			}
+		}
+	}
+}
+
+// GetPolicyByID retrieves a specific policy from the database by ID
+func (e *Evaluator) GetPolicyByID(ctx context.Context, policyID uuid.UUID) (*models.Policy, error) {
+	return e.getPolicy(ctx, policyID)
 }
 
 // getPolicy retrieves a policy from the database
