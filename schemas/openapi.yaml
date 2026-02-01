@@ -1,0 +1,1365 @@
+openapi: 3.0.3
+info:
+  title: Civitas AI Text Moderation API
+  description: |
+    Content moderation API for detecting harmful content across multiple categories.
+    Provides real-time, batch, and async moderation with policy-based decision making.
+  version: 1.0.0
+  contact:
+    name: Civitas AI Support
+    email: support@civitas-ai.com
+
+servers:
+  - url: https://api.civitas-ai.com/api/v1
+    description: Production server
+  - url: https://staging-api.civitas-ai.com/api/v1
+    description: Staging server
+
+tags:
+  - name: moderation
+    description: Content moderation operations
+  - name: policies
+    description: Policy management
+  - name: reviews
+    description: Human review queue
+  - name: evidence
+    description: Evidence and audit records
+  - name: webhooks
+    description: Webhook management
+  - name: reports
+    description: Compliance reporting
+  - name: gdpr
+    description: GDPR data management
+  - name: api-keys
+    description: API key management
+  - name: system
+    description: System health and metrics
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  # Moderation endpoints
+  /moderate:
+    post:
+      tags:
+        - moderation
+      summary: Moderate single text content
+      description: Synchronously moderate a single piece of text content
+      operationId: moderateSingle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationRequest'
+      responses:
+        '200':
+          description: Moderation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /moderate/batch:
+    post:
+      tags:
+        - moderation
+      summary: Moderate multiple text items
+      description: Synchronously moderate multiple pieces of content in a single request
+      operationId: moderateBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchModerationRequest'
+      responses:
+        '200':
+          description: Batch moderation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /moderate/async:
+    post:
+      tags:
+        - moderation
+      summary: Moderate content asynchronously
+      description: Submit content for asynchronous moderation with callback notification
+      operationId: moderateAsync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsyncModerationRequest'
+      responses:
+        '202':
+          description: Request accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Policy endpoints
+  /policies:
+    get:
+      tags:
+        - policies
+      summary: List moderation policies
+      description: Retrieve all available moderation policies
+      operationId: listPolicies
+      parameters:
+        - name: scope
+          in: query
+          description: Filter by policy scope
+          schema:
+            type: string
+        - name: active_only
+          in: query
+          description: Return only active policies
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Policy'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - policies
+      summary: Create moderation policy
+      description: Create a new moderation policy (admin only)
+      operationId: createPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/{id}:
+    get:
+      tags:
+        - policies
+      summary: Get policy by ID
+      description: Retrieve a specific moderation policy
+      operationId: getPolicy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Policy ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/{id}/evaluate:
+    post:
+      tags:
+        - policies
+      summary: Evaluate scores against policy
+      description: Test category scores against a specific policy to see what action would be taken
+      operationId: evaluatePolicy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Policy ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryScores'
+      responses:
+        '200':
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action:
+                    $ref: '#/components/schemas/ModerationAction'
+                  triggered_rules:
+                    type: array
+                    items:
+                      type: string
+                  confidence:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Review queue endpoints
+  /reviews:
+    get:
+      tags:
+        - reviews
+      summary: List review queue items
+      description: Retrieve items awaiting human review
+      operationId: listReviews
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [pending, in_progress, completed]
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of review items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReviewItem'
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reviews/{id}:
+    get:
+      tags:
+        - reviews
+      summary: Get review item
+      description: Retrieve detailed information about a specific review item
+      operationId: getReview
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Review item ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reviews/{id}/action:
+    post:
+      tags:
+        - reviews
+      summary: Submit review action
+      description: Submit a human review decision for a flagged item
+      operationId: submitReviewAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Review item ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      responses:
+        '200':
+          description: Review action recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  updated_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Evidence endpoints
+  /evidence:
+    get:
+      tags:
+        - evidence
+      summary: List evidence records
+      description: Retrieve audit trail and evidence records
+      operationId: listEvidence
+      parameters:
+        - name: submission_hash
+          in: query
+          description: Filter by submission hash
+          schema:
+            type: string
+        - name: decision_id
+          in: query
+          description: Filter by decision ID
+          schema:
+            type: string
+        - name: from_date
+          in: query
+          description: Start date for filtering
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date for filtering
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: List of evidence records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EvidenceRecord'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /evidence/export:
+    get:
+      tags:
+        - evidence
+      summary: Export evidence records
+      description: Export evidence records in specified format
+      operationId: exportEvidence
+      parameters:
+        - name: format
+          in: query
+          required: true
+          description: Export format
+          schema:
+            type: string
+            enum: [json, csv, pdf]
+        - name: from_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Exported data
+          content:
+            application/json:
+              schema:
+                type: object
+            text/csv:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Webhook endpoints
+  /webhooks:
+    get:
+      tags:
+        - webhooks
+      summary: List webhooks
+      description: Retrieve all configured webhooks
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - webhooks
+      summary: Create webhook
+      description: Register a new webhook endpoint
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/{id}:
+    delete:
+      tags:
+        - webhooks
+      summary: Delete webhook
+      description: Remove a webhook endpoint
+      operationId: deleteWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Webhook ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Reports endpoints
+  /reports/generate:
+    post:
+      tags:
+        - reports
+      summary: Generate compliance report
+      description: Generate a compliance report for a specified time period
+      operationId: generateReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - report_type
+                - start_date
+                - end_date
+              properties:
+                report_type:
+                  type: string
+                  enum: [audit, compliance, summary, detailed]
+                start_date:
+                  type: string
+                  format: date-time
+                end_date:
+                  type: string
+                  format: date-time
+                include_evidence:
+                  type: boolean
+                  default: false
+                format:
+                  type: string
+                  enum: [pdf, json, csv]
+                  default: pdf
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: string
+                  download_url:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # GDPR endpoints
+  /submissions/{hash}:
+    delete:
+      tags:
+        - gdpr
+      summary: GDPR data erasure
+      description: Permanently delete a submission and related data (GDPR right to erasure)
+      operationId: gdprErasure
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: Submission content hash
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Data erased
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # API Key management endpoints
+  /api-keys:
+    get:
+      tags:
+        - api-keys
+      summary: List API keys
+      description: List all API keys (admin only)
+      operationId: listApiKeys
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKeyInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - api-keys
+      summary: Generate API key
+      description: Create a new API key for a user
+      operationId: generateApiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+              properties:
+                user_id:
+                  type: string
+                name:
+                  type: string
+                  description: Friendly name for the key
+      responses:
+        '201':
+          description: API key generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    description: The generated API key (only shown once)
+                  user_id:
+                    type: string
+                  name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api-keys/{user_id}:
+    delete:
+      tags:
+        - api-keys
+      summary: Revoke API key
+      description: Permanently revoke an API key
+      operationId: revokeApiKey
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID whose key to revoke
+          schema:
+            type: string
+      responses:
+        '204':
+          description: API key revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api-keys/{user_id}/rotate:
+    post:
+      tags:
+        - api-keys
+      summary: Rotate API key
+      description: Generate a new API key and revoke the old one
+      operationId: rotateApiKey
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID whose key to rotate
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Friendly name for the new key
+      responses:
+        '200':
+          description: API key rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    description: The new API key (only shown once)
+                  user_id:
+                    type: string
+                  name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # System endpoints (no auth required)
+  /health:
+    get:
+      tags:
+        - system
+      summary: Health check
+      description: Check API health status
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: unhealthy
+                  errors:
+                    type: array
+                    items:
+                      type: string
+
+  /metrics:
+    get:
+      tags:
+        - system
+      summary: Prometheus metrics
+      description: Retrieve Prometheus-format metrics
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total Total HTTP requests
+                  # TYPE http_requests_total counter
+                  http_requests_total{method="POST",endpoint="/moderate"} 12345
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    ModerationRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: Text content to moderate
+          maxLength: 100000
+        context_metadata:
+          type: object
+          additionalProperties: true
+          description: Additional context about the content
+        source:
+          type: string
+          description: Source of the content (e.g., "comment", "post", "message")
+        policy_id:
+          type: string
+          description: Specific policy to apply (uses default if not specified)
+
+    ModerationResponse:
+      type: object
+      properties:
+        decision_id:
+          type: string
+          format: uuid
+        submission_id:
+          type: string
+          description: Content hash for deduplication
+        action:
+          $ref: '#/components/schemas/ModerationAction'
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Overall confidence in the decision
+        explanation:
+          type: string
+          description: Human-readable explanation of the decision
+        policy_applied:
+          type: string
+          description: Name or ID of the policy used
+        policy_version:
+          type: string
+          description: Version of the policy used
+        requires_review:
+          type: boolean
+          description: Whether this decision requires human review
+        detected_language:
+          type: string
+          description: ISO 639-1 language code detected in content
+        timestamp:
+          type: string
+          format: date-time
+
+    BatchModerationRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - content
+            properties:
+              content:
+                type: string
+              context_metadata:
+                type: object
+                additionalProperties: true
+              source:
+                type: string
+              policy_id:
+                type: string
+              item_id:
+                type: string
+                description: Client-provided identifier for tracking
+          minItems: 1
+          maxItems: 100
+
+    BatchModerationResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ModerationResponse'
+              - type: object
+                properties:
+                  item_id:
+                    type: string
+                    description: Client-provided identifier from request
+        summary:
+          type: object
+          properties:
+            total:
+              type: integer
+            allowed:
+              type: integer
+            blocked:
+              type: integer
+            warned:
+              type: integer
+            escalated:
+              type: integer
+            processing_time_ms:
+              type: integer
+
+    AsyncModerationRequest:
+      allOf:
+        - $ref: '#/components/schemas/ModerationRequest'
+        - type: object
+          required:
+            - callback_url
+          properties:
+            callback_url:
+              type: string
+              format: uri
+              description: URL to receive the moderation result
+
+    AsyncModerationResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          description: Unique identifier for tracking the async request
+        status:
+          type: string
+          enum: [queued, processing]
+          description: Current status of the request
+        estimated_completion:
+          type: string
+          format: date-time
+          description: Estimated completion time
+
+    CategoryScores:
+      type: object
+      description: Probability scores for each content category
+      properties:
+        toxicity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        hate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        harassment:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        sexual_content:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        violence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        profanity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        self_harm:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        spam:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        pii:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Personally identifiable information detection
+
+    ModerationAction:
+      type: string
+      enum:
+        - allow
+        - warn
+        - block
+        - escalate
+      description: Action to take based on moderation result
+
+    Policy:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        thresholds:
+          type: object
+          description: Category-specific thresholds
+          additionalProperties:
+            type: number
+            format: float
+        actions:
+          type: object
+          description: Action mappings for different threshold levels
+          additionalProperties:
+            $ref: '#/components/schemas/ModerationAction'
+        scope:
+          type: string
+          description: Scope of policy application (e.g., "global", "tenant", "community")
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreatePolicyRequest:
+      type: object
+      required:
+        - name
+        - thresholds
+        - actions
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+        actions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ModerationAction'
+        scope:
+          type: string
+          default: global
+
+    ReviewItem:
+      type: object
+      properties:
+        id:
+          type: string
+        decision_id:
+          type: string
+        content:
+          type: string
+          description: The content that was flagged
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        original_action:
+          $ref: '#/components/schemas/ModerationAction'
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        assigned_to:
+          type: string
+          nullable: true
+        context_metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ReviewActionRequest:
+      type: object
+      required:
+        - action
+        - rationale
+      properties:
+        action:
+          $ref: '#/components/schemas/ModerationAction'
+        rationale:
+          type: string
+          description: Explanation for the review decision
+        edited_content:
+          type: string
+          nullable: true
+          description: Edited version of the content if applicable
+
+    EvidenceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        submission_hash:
+          type: string
+        decision_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        content_sample:
+          type: string
+          description: Redacted or partial content for audit
+        action_taken:
+          $ref: '#/components/schemas/ModerationAction'
+        policy_applied:
+          type: string
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        reviewer_action:
+          type: string
+          nullable: true
+        retention_expires_at:
+          type: string
+          format: date-time
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        event_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - moderation.completed
+              - review.required
+              - review.completed
+              - policy.updated
+        description:
+          type: string
+        active:
+          type: boolean
+        secret:
+          type: string
+          description: Secret for webhook signature verification
+        created_at:
+          type: string
+          format: date-time
+        last_triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateWebhookRequest:
+      type: object
+      required:
+        - url
+        - event_types
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Webhook endpoint URL
+        event_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - moderation.completed
+              - review.required
+              - review.completed
+              - policy.updated
+          minItems: 1
+        description:
+          type: string
+
+    ApiKeyInfo:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+          description: First 8 characters of the key for identification
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type or code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+        request_id:
+          type: string
+          description: Request ID for tracking
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Maximum requests per window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when the rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

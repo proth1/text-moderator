@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civitas AI — Developer Portal</title>
+  <meta name="description" content="Plug-and-play AI content moderation API. Integrate in minutes with 40+ endpoints for real-time, batch, and async moderation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            'slide-bg': '#0f172a',
+            'card-bg': '#1e293b',
+            'card-border': '#334155',
+            'accent': '#3b82f6',
+            'accent-light': '#60a5fa',
+            'accent-dark': '#2563eb',
+            'success': '#22c55e',
+            'warn': '#f59e0b',
+            'danger': '#ef4444',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Tab styles */
+    .tab-btn { transition: all 0.2s ease; }
+    .tab-btn.active { color: #3b82f6; border-color: #3b82f6; }
+    .tab-btn:not(.active):hover { color: #94a3b8; border-color: #475569; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Language selector */
+    .lang-btn { transition: all 0.15s ease; }
+    .lang-btn.active { background: #3b82f6; color: #fff; }
+    .lang-example { display: none; }
+    .lang-example.active { display: block; }
+
+    /* Code blocks */
+    pre[class*="language-"] {
+      background: #0f172a !important;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      margin: 0;
+      font-size: 0.875rem;
+    }
+    .code-block-wrapper { position: relative; }
+    .copy-btn {
+      position: absolute; top: 0.5rem; right: 0.5rem;
+      background: #334155; border: none; color: #94a3b8;
+      padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;
+      font-size: 0.75rem; font-family: 'Inter', sans-serif;
+      transition: all 0.15s ease; z-index: 10;
+    }
+    .copy-btn:hover { background: #475569; color: #e2e8f0; }
+    .copy-btn.copied { background: #22c55e; color: #fff; }
+
+    /* Hero animation */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    .delay-100 { animation-delay: 0.1s; opacity: 0; }
+    .delay-200 { animation-delay: 0.2s; opacity: 0; }
+    .delay-300 { animation-delay: 0.3s; opacity: 0; }
+
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    .typing-effect {
+      overflow: hidden;
+      white-space: nowrap;
+      animation: typing 2s steps(50) 0.5s forwards;
+      width: 0;
+    }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+
+    /* Redoc overrides */
+    #redoc-container .redoc-wrap { background: #0f172a !important; }
+    #redoc-container .menu-content { background: #1e293b !important; }
+
+    /* Responsive nav */
+    .nav-link { white-space: nowrap; }
+
+    /* Pattern diagrams */
+    .pattern-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      text-align: center;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pattern-arrow {
+      display: flex; align-items: center; justify-content: center;
+      color: #3b82f6; font-size: 1.25rem;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Sticky Nav -->
+  <nav id="main-nav" class="sticky top-0 z-50 bg-slide-bg/95 backdrop-blur border-b border-card-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-14">
+        <a href="#hero" class="flex items-center gap-2 font-bold text-lg text-white shrink-0">
+          <svg class="w-7 h-7 text-accent" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Civitas AI
+        </a>
+        <div class="flex items-center gap-1 overflow-x-auto ml-6 hide-scrollbar">
+          <button onclick="switchTab('hero')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="hero">Home</button>
+          <button onclick="switchTab('quickstart')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="quickstart">Quick Start</button>
+          <button onclick="switchTab('api-reference')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="api-reference">API Reference</button>
+          <button onclick="switchTab('authentication')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="authentication">Auth</button>
+          <button onclick="switchTab('webhooks')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="webhooks">Webhooks</button>
+          <button onclick="switchTab('rate-limiting')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="rate-limiting">Rate Limits</button>
+          <button onclick="switchTab('integration')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="integration">Integrations</button>
+          <button onclick="switchTab('errors')" class="tab-btn nav-link text-sm px-3 py-1.5 border-b-2 border-transparent text-slate-400" data-tab="errors">Errors</button>
+          <a href="../" class="nav-link text-sm px-3 py-1.5 text-accent hover:text-accent-light transition inline-flex items-center gap-1 ml-2 border-l border-card-border pl-4">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Presentation
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
+
+    <!-- ==================== HERO ==================== -->
+    <section id="hero" class="tab-content active py-16 md:py-24">
+      <div class="text-center max-w-4xl mx-auto">
+        <div class="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6 animate-fade-in-up">
+          API v1.0 &mdash; 40+ endpoints
+        </div>
+        <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-6 animate-fade-in-up delay-100">
+          Plug-and-Play AI<br>Content Moderation
+        </h1>
+        <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 animate-fade-in-up delay-200">
+          Add content moderation to any AI application in minutes. Real-time scoring,
+          policy-based decisions, human review queues, and full compliance audit trails.
+        </p>
+        <div class="flex flex-wrap justify-center gap-4 mb-16 animate-fade-in-up delay-300">
+          <button onclick="switchTab('quickstart')" class="px-6 py-3 bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition">Get Started</button>
+          <button onclick="switchTab('api-reference')" class="px-6 py-3 bg-card-bg hover:bg-card-border text-white font-semibold rounded-lg border border-card-border transition">API Reference</button>
+        </div>
+
+        <!-- Animated code snippet -->
+        <div class="max-w-2xl mx-auto text-left animate-fade-in-up delay-300">
+          <div class="bg-card-bg rounded-xl border border-card-border overflow-hidden">
+            <div class="flex items-center gap-2 px-4 py-3 border-b border-card-border">
+              <span class="w-3 h-3 rounded-full bg-red-500"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500"></span>
+              <span class="ml-2 text-xs text-slate-500 font-mono">terminal</span>
+            </div>
+            <pre class="!bg-card-bg !border-0 !rounded-none !m-0 p-4"><code class="language-bash typing-effect">curl -X POST https://api.civitas-ai.com/api/v1/moderate \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello world", "source": "comment"}'</code></pre>
+          </div>
+        </div>
+
+        <!-- Value props -->
+        <div class="grid md:grid-cols-3 gap-6 mt-16">
+          <div class="bg-card-bg rounded-xl border border-card-border p-6 text-left">
+            <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h3 class="text-white font-semibold mb-2">Real-Time Scoring</h3>
+            <p class="text-slate-400 text-sm">9 content categories scored 0&ndash;1 with sub-100ms latency. Toxicity, hate, harassment, PII, spam, and more.</p>
+          </div>
+          <div class="bg-card-bg rounded-xl border border-card-border p-6 text-left">
+            <div class="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <h3 class="text-white font-semibold mb-2">Policy Engine</h3>
+            <p class="text-slate-400 text-sm">Define custom policies with per-category thresholds and actions. Allow, warn, block, or escalate to human review.</p>
+          </div>
+          <div class="bg-card-bg rounded-xl border border-card-border p-6 text-left">
+            <div class="w-10 h-10 rounded-lg bg-warn/10 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <h3 class="text-white font-semibold mb-2">Compliance Ready</h3>
+            <p class="text-slate-400 text-sm">Full audit trail, GDPR data erasure, evidence export, and compliance reporting built in. Generate reports on demand.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== QUICK START ==================== -->
+    <section id="quickstart" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Quick Start</h2>
+      <p class="text-slate-400 mb-10">Get moderation results in three steps.</p>
+
+      <!-- Step 1 -->
+      <div class="mb-10">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">1</span>
+          <h3 class="text-xl font-semibold text-white">Get your API key</h3>
+        </div>
+        <p class="text-slate-400 ml-11 mb-4">Request a key from your Civitas AI dashboard or contact <span class="text-accent">support@civitas-ai.com</span>. Store it securely as an environment variable:</p>
+        <div class="ml-11 code-block-wrapper">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-bash">export CIVITAS_API_KEY="civ_live_abc123..."</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="mb-10">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">2</span>
+          <h3 class="text-xl font-semibold text-white">Send your first request</h3>
+        </div>
+        <div class="ml-11">
+          <!-- Language selector -->
+          <div class="flex gap-1 mb-3" id="quickstart-lang-selector">
+            <button class="lang-btn active px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('quickstart', 'curl')">cURL</button>
+            <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('quickstart', 'python')">Python</button>
+            <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('quickstart', 'javascript')">JavaScript</button>
+            <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('quickstart', 'go')">Go</button>
+          </div>
+
+          <div class="lang-example active code-block-wrapper" data-group="quickstart" data-lang="curl">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-bash">curl -X POST https://api.civitas-ai.com/api/v1/moderate \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Text to moderate",
+    "source": "comment",
+    "context_metadata": {
+      "user_id": "usr_123",
+      "channel": "public-chat"
+    }
+  }'</code></pre>
+          </div>
+
+          <div class="lang-example code-block-wrapper" data-group="quickstart" data-lang="python">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-python">import requests
+import os
+
+response = requests.post(
+    "https://api.civitas-ai.com/api/v1/moderate",
+    headers={
+        "X-API-Key": os.environ["CIVITAS_API_KEY"],
+        "Content-Type": "application/json",
+    },
+    json={
+        "content": "Text to moderate",
+        "source": "comment",
+        "context_metadata": {
+            "user_id": "usr_123",
+            "channel": "public-chat",
+        },
+    },
+)
+
+result = response.json()
+print(f"Action: {result['action']}")
+print(f"Confidence: {result['confidence']}")
+print(f"Scores: {result['category_scores']}")</code></pre>
+          </div>
+
+          <div class="lang-example code-block-wrapper" data-group="quickstart" data-lang="javascript">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-javascript">const response = await fetch(
+  "https://api.civitas-ai.com/api/v1/moderate",
+  {
+    method: "POST",
+    headers: {
+      "X-API-Key": process.env.CIVITAS_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      content: "Text to moderate",
+      source: "comment",
+      context_metadata: {
+        user_id: "usr_123",
+        channel: "public-chat",
+      },
+    }),
+  }
+);
+
+const result = await response.json();
+console.log(`Action: ${result.action}`);
+console.log(`Confidence: ${result.confidence}`);</code></pre>
+          </div>
+
+          <div class="lang-example code-block-wrapper" data-group="quickstart" data-lang="go">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-go">package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "os"
+)
+
+func main() {
+    payload, _ := json.Marshal(map[string]interface{}{
+        "content": "Text to moderate",
+        "source":  "comment",
+        "context_metadata": map[string]string{
+            "user_id": "usr_123",
+            "channel": "public-chat",
+        },
+    })
+
+    req, _ := http.NewRequest("POST",
+        "https://api.civitas-ai.com/api/v1/moderate",
+        bytes.NewBuffer(payload))
+    req.Header.Set("X-API-Key", os.Getenv("CIVITAS_API_KEY"))
+    req.Header.Set("Content-Type", "application/json")
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    fmt.Printf("Action: %s\n", result["action"])
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="mb-10">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">3</span>
+          <h3 class="text-xl font-semibold text-white">Handle the response</h3>
+        </div>
+        <p class="text-slate-400 ml-11 mb-4">The API returns a decision with category scores, an action, and an explanation:</p>
+        <div class="ml-11 code-block-wrapper">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-json">{
+  "decision_id": "dec_a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "submission_id": "sub_9f8e7d6c",
+  "action": "allow",
+  "confidence": 0.97,
+  "category_scores": {
+    "toxicity": 0.02,
+    "hate": 0.01,
+    "harassment": 0.01,
+    "sexual_content": 0.00,
+    "violence": 0.00,
+    "profanity": 0.03,
+    "self_harm": 0.00,
+    "spam": 0.05,
+    "pii": 0.00
+  },
+  "explanation": "Content is benign with no policy violations detected.",
+  "policy_applied": "default-v1",
+  "policy_version": "1.0.0",
+  "requires_review": false,
+  "detected_language": "en",
+  "timestamp": "2025-01-15T10:30:00Z"
+}</code></pre>
+        </div>
+        <div class="ml-11 mt-4 bg-card-bg rounded-lg border border-card-border p-4">
+          <p class="text-sm text-slate-400"><strong class="text-white">Key fields:</strong></p>
+          <ul class="text-sm text-slate-400 mt-2 space-y-1">
+            <li><code class="text-accent">action</code> &mdash; <code>allow</code>, <code>warn</code>, <code>block</code>, or <code>escalate</code></li>
+            <li><code class="text-accent">category_scores</code> &mdash; 0&ndash;1 probability per category</li>
+            <li><code class="text-accent">confidence</code> &mdash; overall decision confidence</li>
+            <li><code class="text-accent">requires_review</code> &mdash; whether human review is needed</li>
+            <li><code class="text-accent">decision_id</code> &mdash; unique ID for audit trail lookups</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== API REFERENCE ==================== -->
+    <section id="api-reference" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">API Reference</h2>
+      <p class="text-slate-400 mb-6">Full OpenAPI 3.0.3 specification rendered with Redoc. Search endpoints, view schemas, and try examples.</p>
+      <div id="redoc-container" class="bg-card-bg rounded-xl border border-card-border overflow-hidden min-h-[600px]">
+        <div id="redoc-loading" class="flex items-center justify-center py-20 text-slate-400">
+          <svg class="animate-spin w-6 h-6 mr-3 text-accent" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+          Loading API documentation...
+        </div>
+        <div id="redoc-target"></div>
+      </div>
+    </section>
+
+    <!-- ==================== AUTHENTICATION ==================== -->
+    <section id="authentication" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Authentication</h2>
+      <p class="text-slate-400 mb-10">All API requests (except <code class="text-accent">/health</code> and <code class="text-accent">/metrics</code>) require an API key.</p>
+
+      <div class="grid lg:grid-cols-2 gap-8">
+        <div>
+          <h3 class="text-xl font-semibold text-white mb-4">Using Your API Key</h3>
+          <p class="text-slate-400 mb-4">Pass your key in the <code class="text-accent">X-API-Key</code> header on every request:</p>
+          <div class="code-block-wrapper mb-6">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-bash">curl -H "X-API-Key: civ_live_abc123..." \
+  https://api.civitas-ai.com/api/v1/policies</code></pre>
+          </div>
+
+          <h3 class="text-xl font-semibold text-white mb-4">Key Prefixes</h3>
+          <div class="bg-card-bg rounded-lg border border-card-border overflow-hidden">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-card-border">
+                <th class="text-left px-4 py-3 text-slate-400 font-medium">Prefix</th>
+                <th class="text-left px-4 py-3 text-slate-400 font-medium">Environment</th>
+              </tr></thead>
+              <tbody>
+                <tr class="border-b border-card-border"><td class="px-4 py-3"><code class="text-accent">civ_live_</code></td><td class="px-4 py-3 text-slate-300">Production</td></tr>
+                <tr class="border-b border-card-border"><td class="px-4 py-3"><code class="text-warn">civ_test_</code></td><td class="px-4 py-3 text-slate-300">Staging / Test</td></tr>
+                <tr><td class="px-4 py-3"><code class="text-slate-500">civ_dev_</code></td><td class="px-4 py-3 text-slate-300">Development</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-semibold text-white mb-4">Key Rotation</h3>
+          <p class="text-slate-400 mb-4">Rotate keys without downtime using the rotate endpoint. The old key is revoked after the new one is issued.</p>
+          <div class="code-block-wrapper mb-6">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code class="language-bash">curl -X POST \
+  https://api.civitas-ai.com/api/v1/api-keys/usr_123/rotate \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production-key-v2"}'</code></pre>
+          </div>
+
+          <h3 class="text-xl font-semibold text-white mb-4">Security Best Practices</h3>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-2 text-slate-400 text-sm">
+              <svg class="w-5 h-5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Store keys in environment variables or a secrets manager, never in code
+            </li>
+            <li class="flex items-start gap-2 text-slate-400 text-sm">
+              <svg class="w-5 h-5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Use separate keys for production, staging, and development
+            </li>
+            <li class="flex items-start gap-2 text-slate-400 text-sm">
+              <svg class="w-5 h-5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Rotate keys every 90 days or immediately if compromised
+            </li>
+            <li class="flex items-start gap-2 text-slate-400 text-sm">
+              <svg class="w-5 h-5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Monitor <code class="text-accent">last_used_at</code> in the key listing to detect unused or leaked keys
+            </li>
+            <li class="flex items-start gap-2 text-slate-400 text-sm">
+              <svg class="w-5 h-5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Never send keys over unencrypted channels &mdash; HTTPS is enforced on all endpoints
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== WEBHOOKS ==================== -->
+    <section id="webhooks" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Webhooks</h2>
+      <p class="text-slate-400 mb-10">Receive real-time notifications when moderation events occur.</p>
+
+      <!-- Webhook setup -->
+      <h3 class="text-xl font-semibold text-white mb-4">Register a Webhook</h3>
+      <div class="code-block-wrapper mb-8">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-bash">curl -X POST https://api.civitas-ai.com/api/v1/webhooks \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.com/webhooks/civitas",
+    "event_types": [
+      "moderation.completed",
+      "review.required",
+      "review.completed"
+    ],
+    "description": "Production moderation events"
+  }'</code></pre>
+      </div>
+
+      <h3 class="text-xl font-semibold text-white mb-2">Event Types</h3>
+      <div class="bg-card-bg rounded-lg border border-card-border overflow-hidden mb-8">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-card-border">
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Event</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Triggered When</th>
+          </tr></thead>
+          <tbody>
+            <tr class="border-b border-card-border"><td class="px-4 py-3"><code class="text-accent">moderation.completed</code></td><td class="px-4 py-3 text-slate-300">A moderation decision is finalized (sync or async)</td></tr>
+            <tr class="border-b border-card-border"><td class="px-4 py-3"><code class="text-accent">review.required</code></td><td class="px-4 py-3 text-slate-300">Content is escalated to the human review queue</td></tr>
+            <tr class="border-b border-card-border"><td class="px-4 py-3"><code class="text-accent">review.completed</code></td><td class="px-4 py-3 text-slate-300">A human reviewer submits a decision</td></tr>
+            <tr><td class="px-4 py-3"><code class="text-accent">policy.updated</code></td><td class="px-4 py-3 text-slate-300">A moderation policy is created or modified</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Webhook payload -->
+      <h3 class="text-xl font-semibold text-white mb-4">Webhook Payload</h3>
+      <div class="code-block-wrapper mb-8">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-json">{
+  "event": "moderation.completed",
+  "timestamp": "2025-01-15T10:30:00Z",
+  "data": {
+    "decision_id": "dec_a1b2c3d4",
+    "action": "block",
+    "confidence": 0.95,
+    "category_scores": { "toxicity": 0.92, "hate": 0.85 },
+    "policy_applied": "strict-v2"
+  }
+}</code></pre>
+      </div>
+
+      <!-- Signature verification -->
+      <h3 class="text-xl font-semibold text-white mb-4">Signature Verification (HMAC-SHA256)</h3>
+      <p class="text-slate-400 mb-4">Every webhook request includes a <code class="text-accent">X-Civitas-Signature</code> header. Verify it with your webhook secret to ensure authenticity.</p>
+
+      <div class="flex gap-1 mb-3" id="webhook-lang-selector">
+        <button class="lang-btn active px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('webhook', 'python')">Python</button>
+        <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('webhook', 'javascript')">JavaScript</button>
+        <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('webhook', 'go')">Go</button>
+      </div>
+
+      <div class="lang-example active code-block-wrapper" data-group="webhook" data-lang="python">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-python">import hmac
+import hashlib
+
+def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
+    """Verify Civitas webhook signature using constant-time comparison."""
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        payload,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(f"sha256={expected}", signature)
+
+# In your webhook handler:
+# signature = request.headers["X-Civitas-Signature"]
+# is_valid = verify_webhook(request.body, signature, WEBHOOK_SECRET)</code></pre>
+      </div>
+
+      <div class="lang-example code-block-wrapper" data-group="webhook" data-lang="javascript">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-javascript">import { createHmac, timingSafeEqual } from "crypto";
+
+function verifyWebhook(payload, signature, secret) {
+  const expected = `sha256=${createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex")}`;
+  return timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+
+// In your Express handler:
+// const sig = req.headers["x-civitas-signature"];
+// const valid = verifyWebhook(req.rawBody, sig, WEBHOOK_SECRET);</code></pre>
+      </div>
+
+      <div class="lang-example code-block-wrapper" data-group="webhook" data-lang="go">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-go">package webhook
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "fmt"
+)
+
+func VerifySignature(payload []byte, signature, secret string) bool {
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write(payload)
+    expected := fmt.Sprintf("sha256=%s", hex.EncodeToString(mac.Sum(nil)))
+    return hmac.Equal([]byte(expected), []byte(signature))
+}
+
+// In your HTTP handler:
+// sig := r.Header.Get("X-Civitas-Signature")
+// valid := VerifySignature(body, sig, webhookSecret)</code></pre>
+      </div>
+    </section>
+
+    <!-- ==================== RATE LIMITING ==================== -->
+    <section id="rate-limiting" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Rate Limiting</h2>
+      <p class="text-slate-400 mb-10">Rate limits protect API stability. Every response includes headers with your current usage.</p>
+
+      <h3 class="text-xl font-semibold text-white mb-4">Response Headers</h3>
+      <div class="bg-card-bg rounded-lg border border-card-border overflow-hidden mb-8">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-card-border">
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Header</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Description</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Example</th>
+          </tr></thead>
+          <tbody>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><code class="text-accent">X-RateLimit-Limit</code></td>
+              <td class="px-4 py-3 text-slate-300">Max requests per window</td>
+              <td class="px-4 py-3 text-slate-400"><code>1000</code></td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><code class="text-accent">X-RateLimit-Remaining</code></td>
+              <td class="px-4 py-3 text-slate-300">Requests remaining</td>
+              <td class="px-4 py-3 text-slate-400"><code>847</code></td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3"><code class="text-accent">X-RateLimit-Reset</code></td>
+              <td class="px-4 py-3 text-slate-300">Unix timestamp when window resets</td>
+              <td class="px-4 py-3 text-slate-400"><code>1705312200</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="text-xl font-semibold text-white mb-4">When You Hit the Limit</h3>
+      <p class="text-slate-400 mb-4">You'll receive a <code class="text-accent">429 Too Many Requests</code> response. Use the <code class="text-accent">X-RateLimit-Reset</code> header to determine when to retry.</p>
+      <div class="code-block-wrapper mb-8">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-json">{
+  "error": "rate_limit_exceeded",
+  "message": "Rate limit exceeded. Try again in 32 seconds.",
+  "details": {
+    "limit": 1000,
+    "remaining": 0,
+    "reset_at": 1705312200
+  },
+  "request_id": "req_f8d9e0a1"
+}</code></pre>
+      </div>
+
+      <h3 class="text-xl font-semibold text-white mb-4">Exponential Backoff Strategy</h3>
+      <div class="flex gap-1 mb-3" id="ratelimit-lang-selector">
+        <button class="lang-btn active px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('ratelimit', 'python')">Python</button>
+        <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('ratelimit', 'javascript')">JavaScript</button>
+        <button class="lang-btn px-3 py-1 rounded text-sm bg-card-bg text-slate-400 border border-card-border" onclick="selectLanguage('ratelimit', 'go')">Go</button>
+      </div>
+
+      <div class="lang-example active code-block-wrapper" data-group="ratelimit" data-lang="python">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-python">import time
+import requests
+
+def moderate_with_retry(content, max_retries=3):
+    url = "https://api.civitas-ai.com/api/v1/moderate"
+    headers = {"X-API-Key": os.environ["CIVITAS_API_KEY"]}
+
+    for attempt in range(max_retries):
+        resp = requests.post(url, headers=headers, json={"content": content})
+
+        if resp.status_code == 429:
+            reset = int(resp.headers.get("X-RateLimit-Reset", 0))
+            wait = max(reset - int(time.time()), 1)
+            # Add jitter to avoid thundering herd
+            wait = min(wait, 2 ** attempt + random.random())
+            time.sleep(wait)
+            continue
+
+        resp.raise_for_status()
+        return resp.json()
+
+    raise Exception("Max retries exceeded")</code></pre>
+      </div>
+
+      <div class="lang-example code-block-wrapper" data-group="ratelimit" data-lang="javascript">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-javascript">async function moderateWithRetry(content, maxRetries = 3) {
+  const url = "https://api.civitas-ai.com/api/v1/moderate";
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-API-Key": process.env.CIVITAS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    });
+
+    if (resp.status === 429) {
+      const reset = parseInt(resp.headers.get("X-RateLimit-Reset") || "0");
+      const wait = Math.max(reset - Math.floor(Date.now() / 1000), 1);
+      const jitter = Math.min(wait, 2 ** attempt + Math.random());
+      await new Promise((r) => setTimeout(r, jitter * 1000));
+      continue;
+    }
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  }
+  throw new Error("Max retries exceeded");
+}</code></pre>
+      </div>
+
+      <div class="lang-example code-block-wrapper" data-group="ratelimit" data-lang="go">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-go">func ModerateWithRetry(content string, maxRetries int) (map[string]interface{}, error) {
+    url := "https://api.civitas-ai.com/api/v1/moderate"
+
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        payload, _ := json.Marshal(map[string]string{"content": content})
+        req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+        req.Header.Set("X-API-Key", os.Getenv("CIVITAS_API_KEY"))
+        req.Header.Set("Content-Type", "application/json")
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            return nil, err
+        }
+
+        if resp.StatusCode == 429 {
+            resetStr := resp.Header.Get("X-RateLimit-Reset")
+            reset, _ := strconv.ParseInt(resetStr, 10, 64)
+            wait := time.Until(time.Unix(reset, 0))
+            jitter := time.Duration(math.Min(
+                float64(wait),
+                math.Pow(2, float64(attempt))+rand.Float64(),
+            )) * time.Second
+            resp.Body.Close()
+            time.Sleep(jitter)
+            continue
+        }
+
+        defer resp.Body.Close()
+        var result map[string]interface{}
+        json.NewDecoder(resp.Body).Decode(&result)
+        return result, nil
+    }
+    return nil, fmt.Errorf("max retries exceeded")
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ==================== INTEGRATION PATTERNS ==================== -->
+    <section id="integration" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Integration Patterns</h2>
+      <p class="text-slate-400 mb-10">Common architectures for adding Civitas moderation to your stack.</p>
+
+      <!-- Pattern 1: AI Guardrails -->
+      <div class="bg-card-bg rounded-xl border border-card-border p-6 mb-8">
+        <h3 class="text-xl font-semibold text-white mb-2">1. AI Guardrails (Pre/Post LLM Moderation)</h3>
+        <p class="text-slate-400 text-sm mb-6">Moderate both user input before sending to your LLM and the LLM output before returning to the user.</p>
+
+        <div class="flex flex-wrap items-center justify-center gap-3 mb-6">
+          <div class="pattern-box">User Input</div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box border-accent !border-2">Civitas<br><small class="text-slate-500">Pre-check</small></div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box">Your LLM</div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box border-accent !border-2">Civitas<br><small class="text-slate-500">Post-check</small></div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box">User</div>
+        </div>
+
+        <div class="code-block-wrapper">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-python">async def ai_guardrail(user_message: str) -> str:
+    # Pre-check: moderate user input
+    pre = requests.post(MODERATE_URL, headers=HEADERS, json={
+        "content": user_message, "source": "user-input"
+    }).json()
+    if pre["action"] == "block":
+        return "Your message was flagged. Please rephrase."
+
+    # Send to LLM
+    llm_response = await call_your_llm(user_message)
+
+    # Post-check: moderate LLM output
+    post = requests.post(MODERATE_URL, headers=HEADERS, json={
+        "content": llm_response, "source": "llm-output"
+    }).json()
+    if post["action"] == "block":
+        return "I can't provide that response. Let me try again."
+
+    return llm_response</code></pre>
+        </div>
+      </div>
+
+      <!-- Pattern 2: Real-time Chat -->
+      <div class="bg-card-bg rounded-xl border border-card-border p-6 mb-8">
+        <h3 class="text-xl font-semibold text-white mb-2">2. Real-Time Chat Moderation</h3>
+        <p class="text-slate-400 text-sm mb-6">For latency-sensitive chat, use async moderation with webhook callbacks. Display messages optimistically and take action if flagged.</p>
+
+        <div class="flex flex-wrap items-center justify-center gap-3 mb-6">
+          <div class="pattern-box">Chat Message</div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box">Your Server<br><small class="text-slate-500">Display immediately</small></div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box border-accent !border-2">Civitas Async<br><small class="text-slate-500">POST /moderate/async</small></div>
+          <div class="pattern-arrow">&rarr;</div>
+          <div class="pattern-box">Webhook<br><small class="text-slate-500">Callback</small></div>
+        </div>
+
+        <div class="code-block-wrapper">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-javascript">// Submit for async moderation
+const { request_id } = await fetch(
+  "https://api.civitas-ai.com/api/v1/moderate/async",
+  {
+    method: "POST",
+    headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: message.text,
+      source: "chat",
+      callback_url: "https://your-app.com/webhooks/civitas",
+      context_metadata: { message_id: message.id, room_id: room.id },
+    }),
+  }
+).then((r) => r.json());
+
+// In your webhook handler, take action on flagged messages:
+app.post("/webhooks/civitas", (req, res) => {
+  if (verifyWebhook(req.rawBody, req.headers["x-civitas-signature"], SECRET)) {
+    const { data } = req.body;
+    if (data.action === "block") {
+      removeMessage(data.context_metadata.message_id);
+    }
+    res.sendStatus(200);
+  }
+});</code></pre>
+        </div>
+      </div>
+
+      <!-- Pattern 3: Batch Processing -->
+      <div class="bg-card-bg rounded-xl border border-card-border p-6 mb-8">
+        <h3 class="text-xl font-semibold text-white mb-2">3. Batch Processing</h3>
+        <p class="text-slate-400 text-sm mb-6">Moderate up to 100 items per request. Ideal for backfill, imports, or periodic scanning of existing content.</p>
+
+        <div class="code-block-wrapper">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-python">import requests
+
+items = [
+    {"content": text, "item_id": f"item_{i}", "source": "backfill"}
+    for i, text in enumerate(content_to_scan)
+]
+
+# Process in batches of 100
+for batch_start in range(0, len(items), 100):
+    batch = items[batch_start:batch_start + 100]
+    resp = requests.post(
+        "https://api.civitas-ai.com/api/v1/moderate/batch",
+        headers={"X-API-Key": os.environ["CIVITAS_API_KEY"]},
+        json={"items": batch},
+    ).json()
+
+    print(f"Batch summary: {resp['summary']}")
+    for result in resp["results"]:
+        if result["action"] in ("block", "escalate"):
+            flag_content(result["item_id"], result["action"])</code></pre>
+        </div>
+      </div>
+
+      <!-- Pattern 4: Compliance Reporting -->
+      <div class="bg-card-bg rounded-xl border border-card-border p-6">
+        <h3 class="text-xl font-semibold text-white mb-2">4. Compliance Reporting</h3>
+        <p class="text-slate-400 text-sm mb-6">Generate audit-ready reports and export evidence records for regulators or internal compliance teams.</p>
+
+        <div class="code-block-wrapper mb-4">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code class="language-bash"># Generate a compliance report
+curl -X POST https://api.civitas-ai.com/api/v1/reports/generate \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "report_type": "compliance",
+    "start_date": "2025-01-01T00:00:00Z",
+    "end_date": "2025-01-31T23:59:59Z",
+    "include_evidence": true,
+    "format": "pdf"
+  }'
+
+# Export evidence records as CSV
+curl "https://api.civitas-ai.com/api/v1/evidence/export?\
+format=csv&amp;from_date=2025-01-01T00:00:00Z&amp;to_date=2025-01-31T23:59:59Z" \
+  -H "X-API-Key: $CIVITAS_API_KEY" \
+  -o evidence_jan_2025.csv</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ERROR REFERENCE ==================== -->
+    <section id="errors" class="tab-content py-12">
+      <h2 class="text-3xl font-bold text-white mb-2">Error Reference</h2>
+      <p class="text-slate-400 mb-10">All errors follow a consistent envelope format with a machine-readable code and a human-readable message.</p>
+
+      <h3 class="text-xl font-semibold text-white mb-4">Error Envelope</h3>
+      <div class="code-block-wrapper mb-8">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><code class="language-json">{
+  "error": "validation_error",
+  "message": "The 'content' field is required and must be a non-empty string.",
+  "details": {
+    "field": "content",
+    "constraint": "required"
+  },
+  "request_id": "req_f8d9e0a1"
+}</code></pre>
+      </div>
+
+      <h3 class="text-xl font-semibold text-white mb-4">HTTP Status Codes</h3>
+      <div class="bg-card-bg rounded-lg border border-card-border overflow-hidden mb-8">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-card-border">
+            <th class="text-left px-4 py-3 text-slate-400 font-medium w-20">Code</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Error</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium">Description</th>
+            <th class="text-left px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Resolution</th>
+          </tr></thead>
+          <tbody>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-warn font-mono font-bold">400</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">validation_error</code></td>
+              <td class="px-4 py-3 text-slate-400">Invalid request parameters</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">Check the <code>details</code> field for the specific validation failure. Ensure <code>content</code> is present and within 100K characters.</td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-danger font-mono font-bold">401</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">unauthorized</code></td>
+              <td class="px-4 py-3 text-slate-400">Missing or invalid API key</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">Verify the <code>X-API-Key</code> header is set. Check the key prefix matches your environment. Ensure the key hasn't been revoked.</td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-danger font-mono font-bold">403</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">forbidden</code></td>
+              <td class="px-4 py-3 text-slate-400">Insufficient permissions</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">This endpoint requires admin privileges. Contact your account administrator for access.</td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-warn font-mono font-bold">404</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">not_found</code></td>
+              <td class="px-4 py-3 text-slate-400">Resource not found</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">Verify the resource ID in the URL path. The resource may have been deleted or the ID may be incorrect.</td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-warn font-mono font-bold">429</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">rate_limit_exceeded</code></td>
+              <td class="px-4 py-3 text-slate-400">Too many requests</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">Implement exponential backoff. Check <code>X-RateLimit-Reset</code> header. Consider using batch endpoints for bulk operations.</td>
+            </tr>
+            <tr class="border-b border-card-border">
+              <td class="px-4 py-3"><span class="text-danger font-mono font-bold">500</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">internal_error</code></td>
+              <td class="px-4 py-3 text-slate-400">Server error</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">Retry with backoff. If persistent, contact support with the <code>request_id</code> from the error response.</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3"><span class="text-danger font-mono font-bold">502</span></td>
+              <td class="px-4 py-3"><code class="text-slate-300">bad_gateway</code></td>
+              <td class="px-4 py-3 text-slate-400">Upstream service unavailable</td>
+              <td class="px-4 py-3 text-slate-500 hidden md:table-cell">A downstream dependency is unreachable. Retry after a short delay. Check <code>/health</code> for service status.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="text-xl font-semibold text-white mb-4">Common Errors &amp; Solutions</h3>
+      <div class="space-y-4">
+        <div class="bg-card-bg rounded-lg border border-card-border p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-warn font-mono font-bold text-sm">400</span>
+            <code class="text-white text-sm">"content" field is required</code>
+          </div>
+          <p class="text-slate-400 text-sm">The request body is missing the <code class="text-accent">content</code> field or it's empty. Ensure your JSON body includes <code>{"content": "your text"}</code>.</p>
+        </div>
+
+        <div class="bg-card-bg rounded-lg border border-card-border p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-warn font-mono font-bold text-sm">400</span>
+            <code class="text-white text-sm">content exceeds maximum length</code>
+          </div>
+          <p class="text-slate-400 text-sm">Content exceeds 100,000 characters. Split long documents and use the batch endpoint, or truncate to the relevant section.</p>
+        </div>
+
+        <div class="bg-card-bg rounded-lg border border-card-border p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-danger font-mono font-bold text-sm">401</span>
+            <code class="text-white text-sm">invalid API key format</code>
+          </div>
+          <p class="text-slate-400 text-sm">The key doesn't match expected format. Keys start with <code class="text-accent">civ_live_</code>, <code class="text-accent">civ_test_</code>, or <code class="text-accent">civ_dev_</code>. Check for extra whitespace or truncation.</p>
+        </div>
+
+        <div class="bg-card-bg rounded-lg border border-card-border p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-warn font-mono font-bold text-sm">429</span>
+            <code class="text-white text-sm">rate limit exceeded</code>
+          </div>
+          <p class="text-slate-400 text-sm">You've exceeded your plan's request quota. Check <code class="text-accent">X-RateLimit-Remaining</code> before sending requests. Use batch endpoints to reduce request count.</p>
+        </div>
+
+        <div class="bg-card-bg rounded-lg border border-card-border p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-danger font-mono font-bold text-sm">500</span>
+            <code class="text-white text-sm">internal processing error</code>
+          </div>
+          <p class="text-slate-400 text-sm">An unexpected error occurred. Save the <code class="text-accent">request_id</code> from the response and contact <span class="text-accent">support@civitas-ai.com</span>. Retry after 1&ndash;5 seconds with backoff.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-card-border py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
+      <p class="text-sm text-slate-500">&copy; 2025 Civitas AI. All rights reserved.</p>
+      <div class="flex gap-6 text-sm text-slate-500">
+        <span>API v1.0.0</span>
+        <a href="mailto:support@civitas-ai.com" class="hover:text-slate-400 transition">Support</a>
+        <a href="https://api.civitas-ai.com/api/v1/health" class="hover:text-slate-400 transition">Status</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== EMBEDDED OPENAPI SPEC ==================== -->
+  <script id="openapi-spec" type="application/yaml">
+openapi: 3.0.3
+info:
+  title: Civitas AI Text Moderation API
+  description: |
+    Content moderation API for detecting harmful content across multiple categories.
+    Provides real-time, batch, and async moderation with policy-based decision making.
+  version: 1.0.0
+  contact:
+    name: Civitas AI Support
+    email: support@civitas-ai.com
+
+servers:
+  - url: https://api.civitas-ai.com/api/v1
+    description: Production server
+  - url: https://staging-api.civitas-ai.com/api/v1
+    description: Staging server
+
+tags:
+  - name: moderation
+    description: Content moderation operations
+  - name: policies
+    description: Policy management
+  - name: reviews
+    description: Human review queue
+  - name: evidence
+    description: Evidence and audit records
+  - name: webhooks
+    description: Webhook management
+  - name: reports
+    description: Compliance reporting
+  - name: gdpr
+    description: GDPR data management
+  - name: api-keys
+    description: API key management
+  - name: system
+    description: System health and metrics
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /moderate:
+    post:
+      tags: [moderation]
+      summary: Moderate single text content
+      description: Synchronously moderate a single piece of text content
+      operationId: moderateSingle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationRequest'
+      responses:
+        '200':
+          description: Moderation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /moderate/batch:
+    post:
+      tags: [moderation]
+      summary: Moderate multiple text items
+      description: Synchronously moderate multiple pieces of content in a single request (max 100)
+      operationId: moderateBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchModerationRequest'
+      responses:
+        '200':
+          description: Batch moderation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /moderate/async:
+    post:
+      tags: [moderation]
+      summary: Moderate content asynchronously
+      description: Submit content for asynchronous moderation with callback notification
+      operationId: moderateAsync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsyncModerationRequest'
+      responses:
+        '202':
+          description: Request accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncModerationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies:
+    get:
+      tags: [policies]
+      summary: List moderation policies
+      operationId: listPolicies
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Policy'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [policies]
+      summary: Create moderation policy
+      description: Create a new moderation policy (admin only)
+      operationId: createPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /policies/{id}:
+    get:
+      tags: [policies]
+      summary: Get policy by ID
+      operationId: getPolicy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /policies/{id}/evaluate:
+    post:
+      tags: [policies]
+      summary: Evaluate scores against policy
+      operationId: evaluatePolicy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryScores'
+      responses:
+        '200':
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action:
+                    $ref: '#/components/schemas/ModerationAction'
+                  triggered_rules:
+                    type: array
+                    items:
+                      type: string
+                  confidence:
+                    type: number
+                    format: float
+
+  /reviews:
+    get:
+      tags: [reviews]
+      summary: List review queue items
+      operationId: listReviews
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of review items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReviewItem'
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+
+  /reviews/{id}:
+    get:
+      tags: [reviews]
+      summary: Get review item
+      operationId: getReview
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reviews/{id}/action:
+    post:
+      tags: [reviews]
+      summary: Submit review action
+      operationId: submitReviewAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewActionRequest'
+      responses:
+        '200':
+          description: Review action recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  updated_at:
+                    type: string
+                    format: date-time
+
+  /evidence:
+    get:
+      tags: [evidence]
+      summary: List evidence records
+      operationId: listEvidence
+      parameters:
+        - name: submission_hash
+          in: query
+          schema:
+            type: string
+        - name: decision_id
+          in: query
+          schema:
+            type: string
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: List of evidence records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EvidenceRecord'
+                  total:
+                    type: integer
+
+  /evidence/export:
+    get:
+      tags: [evidence]
+      summary: Export evidence records
+      operationId: exportEvidence
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [json, csv, pdf]
+        - name: from_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Exported data
+
+  /webhooks:
+    get:
+      tags: [webhooks]
+      summary: List webhooks
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+    post:
+      tags: [webhooks]
+      summary: Create webhook
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+
+  /webhooks/{id}:
+    delete:
+      tags: [webhooks]
+      summary: Delete webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reports/generate:
+    post:
+      tags: [reports]
+      summary: Generate compliance report
+      operationId: generateReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report_type, start_date, end_date]
+              properties:
+                report_type:
+                  type: string
+                  enum: [audit, compliance, summary, detailed]
+                start_date:
+                  type: string
+                  format: date-time
+                end_date:
+                  type: string
+                  format: date-time
+                include_evidence:
+                  type: boolean
+                  default: false
+                format:
+                  type: string
+                  enum: [pdf, json, csv]
+                  default: pdf
+      responses:
+        '200':
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: string
+                  download_url:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+
+  /submissions/{hash}:
+    delete:
+      tags: [gdpr]
+      summary: GDPR data erasure
+      description: Permanently delete a submission and related data (GDPR right to erasure)
+      operationId: gdprErasure
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Data erased
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api-keys:
+    get:
+      tags: [api-keys]
+      summary: List API keys
+      description: List all API keys (admin only)
+      operationId: listApiKeys
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKeyInfo'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [api-keys]
+      summary: Generate API key
+      operationId: generateApiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, name]
+              properties:
+                user_id:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '201':
+          description: API key generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    description: The generated API key (only shown once)
+                  user_id:
+                    type: string
+                  name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+
+  /api-keys/{user_id}:
+    delete:
+      tags: [api-keys]
+      summary: Revoke API key
+      operationId: revokeApiKey
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: API key revoked
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api-keys/{user_id}/rotate:
+    post:
+      tags: [api-keys]
+      summary: Rotate API key
+      operationId: rotateApiKey
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: API key rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  user_id:
+                    type: string
+                  name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      security: []
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+        '503':
+          description: Service unavailable
+
+  /metrics:
+    get:
+      tags: [system]
+      summary: Prometheus metrics
+      security: []
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    ModerationRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: Text content to moderate
+          maxLength: 100000
+        context_metadata:
+          type: object
+          additionalProperties: true
+        source:
+          type: string
+          description: Source of the content
+        policy_id:
+          type: string
+
+    ModerationResponse:
+      type: object
+      properties:
+        decision_id:
+          type: string
+          format: uuid
+        submission_id:
+          type: string
+        action:
+          $ref: '#/components/schemas/ModerationAction'
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        explanation:
+          type: string
+        policy_applied:
+          type: string
+        policy_version:
+          type: string
+        requires_review:
+          type: boolean
+        detected_language:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    BatchModerationRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [content]
+            properties:
+              content:
+                type: string
+              context_metadata:
+                type: object
+                additionalProperties: true
+              source:
+                type: string
+              policy_id:
+                type: string
+              item_id:
+                type: string
+
+    BatchModerationResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ModerationResponse'
+              - type: object
+                properties:
+                  item_id:
+                    type: string
+        summary:
+          type: object
+          properties:
+            total:
+              type: integer
+            allowed:
+              type: integer
+            blocked:
+              type: integer
+            warned:
+              type: integer
+            escalated:
+              type: integer
+            processing_time_ms:
+              type: integer
+
+    AsyncModerationRequest:
+      allOf:
+        - $ref: '#/components/schemas/ModerationRequest'
+        - type: object
+          required: [callback_url]
+          properties:
+            callback_url:
+              type: string
+              format: uri
+
+    AsyncModerationResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, processing]
+        estimated_completion:
+          type: string
+          format: date-time
+
+    CategoryScores:
+      type: object
+      properties:
+        toxicity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        hate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        harassment:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        sexual_content:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        violence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        profanity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        self_harm:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        spam:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        pii:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    ModerationAction:
+      type: string
+      enum: [allow, warn, block, escalate]
+
+    Policy:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+        actions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ModerationAction'
+        scope:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreatePolicyRequest:
+      type: object
+      required: [name, thresholds, actions]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+        actions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ModerationAction'
+        scope:
+          type: string
+          default: global
+
+    ReviewItem:
+      type: object
+      properties:
+        id:
+          type: string
+        decision_id:
+          type: string
+        content:
+          type: string
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        original_action:
+          $ref: '#/components/schemas/ModerationAction'
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        assigned_to:
+          type: string
+          nullable: true
+        context_metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ReviewActionRequest:
+      type: object
+      required: [action, rationale]
+      properties:
+        action:
+          $ref: '#/components/schemas/ModerationAction'
+        rationale:
+          type: string
+        edited_content:
+          type: string
+          nullable: true
+
+    EvidenceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        submission_hash:
+          type: string
+        decision_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        content_sample:
+          type: string
+        action_taken:
+          $ref: '#/components/schemas/ModerationAction'
+        policy_applied:
+          type: string
+        category_scores:
+          $ref: '#/components/schemas/CategoryScores'
+        reviewer_action:
+          type: string
+          nullable: true
+        retention_expires_at:
+          type: string
+          format: date-time
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        event_types:
+          type: array
+          items:
+            type: string
+            enum: [moderation.completed, review.required, review.completed, policy.updated]
+        description:
+          type: string
+        active:
+          type: boolean
+        secret:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateWebhookRequest:
+      type: object
+      required: [url, event_types]
+      properties:
+        url:
+          type: string
+          format: uri
+        event_types:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [moderation.completed, review.required, review.completed, policy.updated]
+        description:
+          type: string
+
+    ApiKeyInfo:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  </script>
+
+  <!-- Redoc standalone bundle -->
+  <script src="https://cdn.redoc.ly/redoc/v2.1.3/bundles/redoc.standalone.js"></script>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    // --- Tab navigation ---
+    function switchTab(tabId) {
+      // Deactivate all tabs and buttons
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Activate target
+      const target = document.getElementById(tabId);
+      if (target) {
+        target.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // Activate matching nav button
+      document.querySelectorAll(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
+
+      // Update URL hash
+      history.replaceState(null, '', `#${tabId}`);
+
+      // Initialize Redoc on first visit to api-reference tab
+      if (tabId === 'api-reference' && !window._redocInitialized) {
+        initRedoc();
+      }
+    }
+
+    // --- Copy to clipboard ---
+    function copyCode(button) {
+      const wrapper = button.closest('.code-block-wrapper');
+      const code = wrapper.querySelector('code');
+      const text = code.textContent;
+
+      navigator.clipboard.writeText(text).then(() => {
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          button.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    // --- Language selector ---
+    function selectLanguage(group, lang) {
+      // Update buttons
+      const selector = document.getElementById(`${group}-lang-selector`);
+      if (selector) {
+        selector.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+        // Find button by text content match
+        selector.querySelectorAll('.lang-btn').forEach(btn => {
+          if (btn.textContent.trim().toLowerCase() === lang.toLowerCase() ||
+              (lang === 'curl' && btn.textContent.trim() === 'cURL')) {
+            btn.classList.add('active');
+          }
+        });
+      }
+
+      // Show/hide code examples
+      document.querySelectorAll(`.lang-example[data-group="${group}"]`).forEach(el => {
+        el.classList.toggle('active', el.dataset.lang === lang);
+      });
+    }
+
+    // --- Redoc initialization ---
+    function initRedoc() {
+      if (window._redocInitialized) return;
+      window._redocInitialized = true;
+
+      try {
+        const yamlText = document.getElementById('openapi-spec').textContent;
+        const spec = jsyaml.load(yamlText);
+
+        const loading = document.getElementById('redoc-loading');
+        if (loading) loading.style.display = 'none';
+
+        Redoc.init(spec, {
+          theme: {
+            colors: {
+              primary: { main: '#3b82f6' },
+              text: { primary: '#e2e8f0', secondary: '#94a3b8' },
+              http: {
+                get: '#22c55e',
+                post: '#3b82f6',
+                put: '#f59e0b',
+                delete: '#ef4444',
+              },
+            },
+            typography: {
+              fontFamily: 'Inter, system-ui, sans-serif',
+              code: { fontFamily: 'JetBrains Mono, monospace' },
+            },
+            sidebar: {
+              backgroundColor: '#1e293b',
+              textColor: '#94a3b8',
+              activeTextColor: '#3b82f6',
+            },
+            rightPanel: {
+              backgroundColor: '#0f172a',
+            },
+          },
+          scrollYOffset: 56,
+          hideDownloadButton: false,
+          expandResponses: '200,201,202',
+          pathInMiddlePanel: true,
+          nativeScrollbars: true,
+        }, document.getElementById('redoc-target'));
+      } catch (e) {
+        console.error('Redoc init failed:', e);
+        const container = document.getElementById('redoc-container');
+        container.innerHTML = '<div class="p-8 text-center text-slate-400">Failed to load API documentation. Check the console for details.</div>';
+      }
+    }
+
+    // --- Init on load ---
+    document.addEventListener('DOMContentLoaded', () => {
+      // Handle hash navigation
+      const hash = window.location.hash.replace('#', '') || 'hero';
+      switchTab(hash);
+
+      // Re-run Prism highlighting
+      Prism.highlightAll();
+    });
+
+    // Handle back/forward navigation
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash.replace('#', '') || 'hero';
+      switchTab(hash);
+    });
+  </script>
+</body>
+</html>
