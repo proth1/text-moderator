@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/proth1/text-moderator/internal/models"
+	"github.com/sony/gobreaker"
 	"go.uber.org/zap"
 )
 
@@ -15,6 +17,7 @@ import (
 // Control: MOD-001 (Multi-provider classification orchestration)
 type Orchestrator struct {
 	providers  map[string]Provider
+	breakers   map[string]*gobreaker.CircuitBreaker
 	config     OrchestratorConfig
 	calibrator *Calibrator
 	mu         sync.RWMutex
@@ -25,17 +28,39 @@ type Orchestrator struct {
 func NewOrchestrator(cfg OrchestratorConfig, logger *zap.Logger) *Orchestrator {
 	return &Orchestrator{
 		providers: make(map[string]Provider),
+		breakers:  make(map[string]*gobreaker.CircuitBreaker),
 		config:    cfg,
 		logger:    logger,
 	}
 }
 
 // RegisterProvider adds a classification provider to the orchestrator.
+// A circuit breaker is created per provider: opens after 5 consecutive failures,
+// half-opens after 60 seconds.
 func (o *Orchestrator) RegisterProvider(provider Provider) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.providers[provider.Name()] = provider
-	o.logger.Info("registered classification provider", zap.String("provider", provider.Name()))
+	name := provider.Name()
+	o.providers[name] = provider
+
+	o.breakers[name] = gobreaker.NewCircuitBreaker(gobreaker.Settings{
+		Name:        "classifier-" + name,
+		MaxRequests: 1,                // allow 1 request in half-open state
+		Interval:    0,                // don't clear counts in closed state
+		Timeout:     60 * time.Second, // half-open after 60s
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures >= 5
+		},
+		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
+			o.logger.Warn("circuit breaker state change",
+				zap.String("breaker", name),
+				zap.String("from", from.String()),
+				zap.String("to", to.String()),
+			)
+		},
+	})
+
+	o.logger.Info("registered classification provider", zap.String("provider", name))
 }
 
 // Classify routes the classification request to the highest-priority available provider,
@@ -57,17 +82,39 @@ func (o *Orchestrator) Classify(ctx context.Context, text string) (*Classificati
 			continue
 		}
 
-		scores, err := provider.Classify(ctx, text)
-		if err != nil {
-			lastErr = err
-			o.logger.Warn("provider classification failed",
-				zap.String("provider", pcfg.Name),
-				zap.Error(err),
-			)
-			if o.config.FallbackEnabled {
-				continue
+		breaker := o.breakers[pcfg.Name]
+		var scores *models.CategoryScores
+
+		if breaker != nil {
+			result, err := breaker.Execute(func() (interface{}, error) {
+				return provider.Classify(ctx, text)
+			})
+			if err != nil {
+				lastErr = err
+				o.logger.Warn("provider classification failed",
+					zap.String("provider", pcfg.Name),
+					zap.Error(err),
+				)
+				if o.config.FallbackEnabled {
+					continue
+				}
+				return nil, fmt.Errorf("provider %s failed: %w", pcfg.Name, err)
 			}
-			return nil, fmt.Errorf("provider %s failed: %w", pcfg.Name, err)
+			scores = result.(*models.CategoryScores)
+		} else {
+			var err error
+			scores, err = provider.Classify(ctx, text)
+			if err != nil {
+				lastErr = err
+				o.logger.Warn("provider classification failed",
+					zap.String("provider", pcfg.Name),
+					zap.Error(err),
+				)
+				if o.config.FallbackEnabled {
+					continue
+				}
+				return nil, fmt.Errorf("provider %s failed: %w", pcfg.Name, err)
+			}
 		}
 
 		if o.calibrator != nil {

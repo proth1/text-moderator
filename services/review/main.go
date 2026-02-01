@@ -12,14 +12,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/proth1/text-moderator/internal/compliance"
 	"github.com/proth1/text-moderator/internal/config"
-	"github.com/proth1/text-moderator/internal/feedback"
+	"github.com/proth1/text-moderator/internal/apikey"
 	"github.com/proth1/text-moderator/internal/database"
 	"github.com/proth1/text-moderator/internal/evidence"
+	"github.com/proth1/text-moderator/internal/fairness"
+	"github.com/proth1/text-moderator/internal/feedback"
+	"github.com/proth1/text-moderator/internal/retention"
 	"github.com/proth1/text-moderator/internal/middleware"
 	"github.com/proth1/text-moderator/internal/models"
+	"github.com/proth1/text-moderator/internal/observability"
 	"github.com/proth1/text-moderator/internal/webhook"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 )
 
@@ -71,8 +77,50 @@ func main() {
 	// Initialize compliance reporter
 	complianceReporter := compliance.NewReporter(db.Pool, logger)
 
+	// Initialize data retention purger
+	purger := retention.NewPurger(db.Pool, logger)
+
+	// Initialize API key manager
+	keyManager := apikey.NewManager(db.Pool, logger)
+
+	// Initialize distributed tracing
+	tracingShutdown, err := observability.InitTracing(context.Background(), "review", cfg.Version, cfg.OTLPEndpoint, logger)
+	if err != nil {
+		logger.Warn("failed to initialize tracing", zap.Error(err))
+	} else {
+		defer tracingShutdown(context.Background())
+	}
+
+	// Initialize Prometheus metrics
+	metrics := observability.NewMetrics("review")
+
+	// Start background goroutine to update review queue size gauge
+	gaugeCtx, gaugeCancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-gaugeCtx.Done():
+				return
+			case <-ticker.C:
+				var count float64
+				err := db.Pool.QueryRow(gaugeCtx,
+					`SELECT COUNT(*) FROM moderation_decisions d
+					 LEFT JOIN review_actions r ON r.decision_id = d.id
+					 WHERE d.automated_action = 'escalate' AND r.id IS NULL`,
+				).Scan(&count)
+				if err != nil {
+					logger.Warn("failed to query review queue size", zap.Error(err))
+					continue
+				}
+				metrics.ReviewQueueSize.Set(count)
+			}
+		}
+	}()
+
 	// Create HTTP server
-	router := setupRouter(cfg, logger, db, evidenceWriter, webhookDispatcher, complianceReporter, feedbackTracker)
+	router := setupRouter(cfg, logger, db, evidenceWriter, webhookDispatcher, complianceReporter, feedbackTracker, purger, keyManager, metrics)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.ReviewPort),
 		Handler:           router,
@@ -96,6 +144,7 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down review service")
+	gaugeCancel() // stop background queue size polling
 
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -108,18 +157,21 @@ func main() {
 	logger.Info("review service stopped")
 }
 
-func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evidenceWriter *evidence.Writer, webhookDispatcher *webhook.Dispatcher, complianceReporter *compliance.Reporter, feedbackTracker *feedback.Tracker) *gin.Engine {
+func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evidenceWriter *evidence.Writer, webhookDispatcher *webhook.Dispatcher, complianceReporter *compliance.Reporter, feedbackTracker *feedback.Tracker, purger *retention.Purger, keyManager *apikey.Manager, metrics *observability.Metrics) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(otelgin.Middleware("review"))
 	router.Use(middleware.LoggingMiddleware(logger))
 	router.Use(middleware.CORSMiddleware(middleware.DefaultCORSConfig()))
+	router.Use(observability.MetricsMiddleware(metrics))
 
-	// Health check
+	// Health check and metrics
 	router.GET("/health", healthHandler(db))
+	router.GET("/metrics", observability.PrometheusHandler())
 
 	// Review endpoints (require authentication)
 	api := router.Group("/")
@@ -127,7 +179,9 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 	{
 		api.GET("/reviews", middleware.RequireRole("admin", "moderator"), listReviewsHandler(db, logger))
 		api.GET("/reviews/:id", middleware.RequireRole("admin", "moderator"), getReviewHandler(db, logger))
-		api.POST("/reviews/:id/action", middleware.RequireRole("admin", "moderator"), submitReviewActionHandler(db, evidenceWriter, feedbackTracker, logger))
+		api.POST("/reviews/:id/action", middleware.RequireRole("admin", "moderator"), submitReviewActionHandler(db, evidenceWriter, feedbackTracker, logger, metrics))
+		api.POST("/reviews/:id/claim", middleware.RequireRole("admin", "moderator"), claimReviewHandler(db, cfg, logger))
+		api.POST("/reviews/:id/unclaim", middleware.RequireRole("admin", "moderator"), unclaimReviewHandler(db, logger))
 
 		// Evidence endpoints
 		api.GET("/evidence", middleware.RequireRole("admin"), listEvidenceHandler(evidenceWriter))
@@ -140,6 +194,18 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 
 		// Compliance report generation
 		api.POST("/reports/generate", middleware.RequireRole("admin"), generateReportHandler(complianceReporter, logger))
+
+		// Fairness and bias detection
+		api.GET("/reports/fairness", middleware.RequireRole("admin"), fairnessReportHandler(db, logger))
+
+		// GDPR erasure endpoint
+		api.DELETE("/submissions/:hash", middleware.RequireRole("admin"), erasureHandler(purger, logger))
+
+		// API key management endpoints
+		api.GET("/api-keys", middleware.RequireRole("admin"), listAPIKeysHandler(keyManager))
+		api.POST("/api-keys", middleware.RequireRole("admin"), generateAPIKeyHandler(keyManager, logger))
+		api.DELETE("/api-keys/:user_id", middleware.RequireRole("admin"), revokeAPIKeyHandler(keyManager, logger))
+		api.POST("/api-keys/:user_id/rotate", middleware.RequireRole("admin"), rotateAPIKeyHandler(keyManager, logger))
 	}
 
 	return router
@@ -185,26 +251,57 @@ func listReviewsHandler(db *database.PostgresDB, logger *zap.Logger) gin.Handler
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
-		// Get decisions that require review (escalated decisions without review actions)
-		query := `
-			SELECT
-				d.id AS decision_id,
-				d.submission_id,
-				s.content_hash,
-				d.category_scores,
-				d.automated_action,
-				p.name AS policy_name,
-				d.created_at
-			FROM moderation_decisions d
-			JOIN text_submissions s ON s.id = d.submission_id
-			LEFT JOIN policies p ON p.id = d.policy_id
-			LEFT JOIN review_actions r ON r.decision_id = d.id
-			WHERE d.automated_action = 'escalate' AND r.id IS NULL
-			ORDER BY d.created_at ASC
-			LIMIT 100
-		`
+		// Parse pagination parameters
+		limitStr := c.DefaultQuery("limit", "50")
+		cursor := c.Query("cursor") // cursor = created_at of last item (ISO 8601)
 
-		rows, err := db.Pool.Query(ctx, query)
+		limit := 50
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 && parsed <= 200 {
+			limit = parsed
+		}
+
+		// Build query with cursor-based pagination
+		var rows pgx.Rows
+		var err error
+
+		selectCols := `
+					d.id AS decision_id,
+					d.submission_id,
+					s.content_hash,
+					d.category_scores,
+					d.automated_action,
+					p.name AS policy_name,
+					d.assigned_reviewer,
+					d.assigned_at,
+					d.sla_deadline,
+					d.created_at`
+		fromClause := `
+				FROM moderation_decisions d
+				JOIN text_submissions s ON s.id = d.submission_id
+				LEFT JOIN policies p ON p.id = d.policy_id
+				LEFT JOIN review_actions r ON r.decision_id = d.id
+				WHERE d.automated_action = 'escalate' AND r.id IS NULL`
+
+		if cursor != "" {
+			cursorTime, parseErr := time.Parse(time.RFC3339Nano, cursor)
+			if parseErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid cursor format, expected RFC3339"})
+				return
+			}
+			query := `SELECT` + selectCols + fromClause + `
+				  AND d.created_at > $1
+				ORDER BY d.created_at ASC
+				LIMIT $2
+			`
+			rows, err = db.Pool.Query(ctx, query, cursorTime, limit+1)
+		} else {
+			query := `SELECT` + selectCols + fromClause + `
+				ORDER BY d.created_at ASC
+				LIMIT $1
+			`
+			rows, err = db.Pool.Query(ctx, query, limit+1)
+		}
+
 		if err != nil {
 			logger.Error("failed to query review queue", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query review queue"})
@@ -222,6 +319,9 @@ func listReviewsHandler(db *database.PostgresDB, logger *zap.Logger) gin.Handler
 				&item.CategoryScores,
 				&item.AutomatedAction,
 				&item.PolicyName,
+				&item.AssignedReviewer,
+				&item.AssignedAt,
+				&item.SLADeadline,
 				&item.CreatedAt,
 			)
 			if err != nil {
@@ -231,7 +331,94 @@ func listReviewsHandler(db *database.PostgresDB, logger *zap.Logger) gin.Handler
 			items = append(items, item)
 		}
 
-		c.JSON(http.StatusOK, items)
+		// Determine if there are more results
+		hasMore := len(items) > limit
+		if hasMore {
+			items = items[:limit]
+		}
+
+		var nextCursor string
+		if hasMore && len(items) > 0 {
+			nextCursor = items[len(items)-1].CreatedAt.Format(time.RFC3339Nano)
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"items":       items,
+			"next_cursor": nextCursor,
+			"has_more":    hasMore,
+		})
+	}
+}
+
+func claimReviewHandler(db *database.PostgresDB, cfg *config.Config, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		decisionID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid decision ID"})
+			return
+		}
+
+		reviewerID := middleware.MustGetUserID(c)
+		ctx := c.Request.Context()
+
+		// Set SLA deadline (default 4 hours from now)
+		slaHours := 4 * time.Hour
+		slaDeadline := time.Now().Add(slaHours)
+
+		// Atomically claim only if unclaimed
+		tag, err := db.Pool.Exec(ctx,
+			`UPDATE moderation_decisions
+			 SET assigned_reviewer = $1, assigned_at = NOW(), sla_deadline = $2
+			 WHERE id = $3 AND automated_action = 'escalate' AND assigned_reviewer IS NULL`,
+			reviewerID, slaDeadline, decisionID,
+		)
+		if err != nil {
+			logger.Error("failed to claim review", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to claim review"})
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "review is already claimed or does not exist"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"decision_id":  decisionID,
+			"assigned_to":  reviewerID,
+			"sla_deadline": slaDeadline,
+		})
+	}
+}
+
+func unclaimReviewHandler(db *database.PostgresDB, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		decisionID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid decision ID"})
+			return
+		}
+
+		reviewerID := middleware.MustGetUserID(c)
+		ctx := c.Request.Context()
+
+		// Only allow the assigned reviewer (or admin) to unclaim
+		tag, err := db.Pool.Exec(ctx,
+			`UPDATE moderation_decisions
+			 SET assigned_reviewer = NULL, assigned_at = NULL, sla_deadline = NULL
+			 WHERE id = $1 AND assigned_reviewer = $2`,
+			decisionID, reviewerID,
+		)
+		if err != nil {
+			logger.Error("failed to unclaim review", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unclaim review"})
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "review is not assigned to you"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"decision_id": decisionID, "status": "unclaimed"})
 	}
 }
 
@@ -288,7 +475,7 @@ func getReviewHandler(db *database.PostgresDB, logger *zap.Logger) gin.HandlerFu
 	}
 }
 
-func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence.Writer, feedbackTracker *feedback.Tracker, logger *zap.Logger) gin.HandlerFunc {
+func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence.Writer, feedbackTracker *feedback.Tracker, logger *zap.Logger, metrics *observability.Metrics) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		decisionID, err := uuid.Parse(c.Param("id"))
 		if err != nil {
@@ -368,6 +555,8 @@ func submitReviewActionHandler(db *database.PostgresDB, evidenceWriter *evidence
 
 		// Record feedback for calibration loop (async)
 		go feedbackTracker.RecordFeedback(context.Background(), &decision, req.Action)
+
+		metrics.ReviewTotal.WithLabelValues(string(req.Action)).Inc()
 
 		c.JSON(http.StatusCreated, review)
 	}
@@ -540,6 +729,142 @@ func generateReportHandler(reporter *compliance.Reporter, logger *zap.Logger) gi
 		// Return HTML if requested, otherwise JSON
 		if c.GetHeader("Accept") == "text/html" {
 			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(report.HTMLContent))
+			return
+		}
+
+		c.JSON(http.StatusOK, report)
+	}
+}
+
+// --- API Key Management Handlers ---
+// Control: SEC-002 (API Key and OAuth Authentication)
+
+func listAPIKeysHandler(keyManager *apikey.Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		keys, err := keyManager.ListKeys(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list keys"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"keys": keys})
+	}
+}
+
+func generateAPIKeyHandler(keyManager *apikey.Manager, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			UserID uuid.UUID `json:"user_id" binding:"required"`
+			Name   string    `json:"name" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+
+		plaintext, err := keyManager.GenerateKey(c.Request.Context(), req.UserID, req.Name)
+		if err != nil {
+			logger.Error("failed to generate API key", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate key"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"api_key": plaintext,
+			"message": "Store this key securely. It will not be shown again.",
+		})
+	}
+}
+
+func revokeAPIKeyHandler(keyManager *apikey.Manager, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := uuid.Parse(c.Param("user_id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+			return
+		}
+
+		if err := keyManager.RevokeKey(c.Request.Context(), userID); err != nil {
+			logger.Error("failed to revoke API key", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke key"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "revoked"})
+	}
+}
+
+func rotateAPIKeyHandler(keyManager *apikey.Manager, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := uuid.Parse(c.Param("user_id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+			return
+		}
+
+		var req struct {
+			Name string `json:"name" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+
+		plaintext, err := keyManager.RotateKey(c.Request.Context(), userID, req.Name)
+		if err != nil {
+			logger.Error("failed to rotate API key", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rotate key"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"api_key": plaintext,
+			"message": "Store this key securely. It will not be shown again.",
+		})
+	}
+}
+
+// --- GDPR Erasure Handler ---
+// Control: SEC-003 (Data Retention Controls)
+
+func erasureHandler(purger *retention.Purger, logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		contentHash := c.Param("hash")
+		if contentHash == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content hash is required"})
+			return
+		}
+
+		if err := purger.PurgeByContentHash(c.Request.Context(), contentHash); err != nil {
+			logger.Error("GDPR erasure failed", zap.Error(err), zap.String("hash", contentHash))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "erasure failed"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "erased",
+			"message": "Content data anonymized per GDPR erasure request",
+		})
+	}
+}
+
+func fairnessReportHandler(db *database.PostgresDB, logger *zap.Logger) gin.HandlerFunc {
+	detector := fairness.NewBiasDetector(db.Pool, logger)
+	return func(c *gin.Context) {
+		windowStr := c.DefaultQuery("window", "24h")
+		window, err := time.ParseDuration(windowStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid window duration"})
+			return
+		}
+		if window > 720*time.Hour { // max 30 days
+			c.JSON(http.StatusBadRequest, gin.H{"error": "window cannot exceed 720h"})
+			return
+		}
+
+		report, err := detector.GenerateReport(c.Request.Context(), window)
+		if err != nil {
+			logger.Error("failed to generate fairness report", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate report"})
 			return
 		}
 

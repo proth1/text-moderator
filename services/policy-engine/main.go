@@ -15,7 +15,9 @@ import (
 	"github.com/proth1/text-moderator/internal/database"
 	"github.com/proth1/text-moderator/internal/middleware"
 	"github.com/proth1/text-moderator/internal/models"
+	"github.com/proth1/text-moderator/internal/observability"
 	"github.com/proth1/text-moderator/services/policy-engine/engine"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 )
 
@@ -58,8 +60,19 @@ func main() {
 	// Initialize policy evaluator
 	evaluator := engine.NewEvaluator(db.Pool, logger)
 
+	// Initialize distributed tracing
+	tracingShutdown, err := observability.InitTracing(context.Background(), "policy-engine", cfg.Version, cfg.OTLPEndpoint, logger)
+	if err != nil {
+		logger.Warn("failed to initialize tracing", zap.Error(err))
+	} else {
+		defer tracingShutdown(context.Background())
+	}
+
+	// Initialize Prometheus metrics
+	metrics := observability.NewMetrics("policy-engine")
+
 	// Create HTTP server
-	router := setupRouter(cfg, logger, db, evaluator)
+	router := setupRouter(cfg, logger, db, evaluator, metrics)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.PolicyEnginePort),
 		Handler:           router,
@@ -95,18 +108,21 @@ func main() {
 	logger.Info("policy-engine service stopped")
 }
 
-func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evaluator *engine.Evaluator) *gin.Engine {
+func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, evaluator *engine.Evaluator, metrics *observability.Metrics) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(otelgin.Middleware("policy-engine"))
 	router.Use(middleware.LoggingMiddleware(logger))
 	router.Use(middleware.CORSMiddleware(middleware.DefaultCORSConfig()))
+	router.Use(observability.MetricsMiddleware(metrics))
 
-	// Health check
+	// Health check and metrics
 	router.GET("/health", healthHandler(db))
+	router.GET("/metrics", observability.PrometheusHandler())
 
 	// Policy endpoints (require authentication)
 	api := router.Group("/")
@@ -115,7 +131,7 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 		api.GET("/policies", listPoliciesHandler(evaluator))
 		api.POST("/policies", middleware.RequireRole("admin"), createPolicyHandler(evaluator))
 		api.GET("/policies/:id", getPolicyHandler(evaluator))
-		api.POST("/policies/:id/evaluate", evaluatePolicyHandler(evaluator))
+		api.POST("/policies/:id/evaluate", evaluatePolicyHandler(evaluator, metrics))
 	}
 
 	return router
@@ -241,8 +257,10 @@ func getPolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 	}
 }
 
-func evaluatePolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
+func evaluatePolicyHandler(evaluator *engine.Evaluator, metrics *observability.Metrics) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		evalStart := time.Now()
+
 		policyID, err := uuid.Parse(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy ID"})
@@ -264,6 +282,9 @@ func evaluatePolicyHandler(evaluator *engine.Evaluator) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to evaluate policy"})
 			return
 		}
+
+		metrics.PolicyEvaluationTotal.WithLabelValues(policyID.String(), string(result.Action)).Inc()
+		metrics.PolicyEvaluationDuration.Observe(time.Since(evalStart).Seconds())
 
 		c.JSON(http.StatusOK, result)
 	}

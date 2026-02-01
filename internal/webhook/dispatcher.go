@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -279,9 +280,13 @@ func computeHMAC(payload []byte, secret string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// generateSecret creates a random secret for HMAC signing.
+// generateSecret creates a cryptographically random secret for HMAC signing.
 func generateSecret() string {
-	return uuid.New().String() + "-" + uuid.New().String()
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand unavailable: " + err.Error())
+	}
+	return hex.EncodeToString(b)
 }
 
 func intPtr(v int) *int       { return &v }
