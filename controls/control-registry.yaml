@@ -93,8 +93,8 @@ controls:
     evidence: AUD-001
     implementation:
       service: policy-engine
-      function: tbd
-      file: tbd
+      function: CreatePolicy (auto-increments version)
+      file: services/policy-engine/engine/evaluator.go
 
   - id: POL-003
     name: Regional Policy Resolution
@@ -141,8 +141,8 @@ controls:
     evidence: AUD-002
     implementation:
       service: review
-      function: tbd
-      file: tbd
+      function: submitReviewActionHandler (reviewer != submitter check)
+      file: services/review/main.go
 
   - id: GOV-004
     name: Policy Management UI
@@ -200,9 +200,9 @@ controls:
       - "NIST AI RMF – GOV"
     evidence: AUD-001
     implementation:
-      service: gateway
-      function: tbd
-      file: tbd
+      service: infrastructure
+      function: Cloud Run TLS termination + Supabase SSL enforcement
+      file: deploy/cloudrun-service.yaml
 
   - id: SEC-002
     name: API Key and OAuth Authentication
@@ -224,9 +224,9 @@ controls:
       - "NIST AI RMF – MANAGE"
     evidence: AUD-001
     implementation:
-      service: tbd
-      function: tbd
-      file: tbd
+      service: review
+      function: PurgeExpired + erasureHandler (GDPR right to erasure)
+      file: internal/retention/purger.go
 
   - id: OBS-001
     name: Observability
@@ -237,8 +237,8 @@ controls:
     evidence: self
     implementation:
       service: all
-      function: tbd
-      file: tbd
+      function: MetricsMiddleware + PrometheusHandler
+      file: internal/observability/metrics.go
 
   - id: ANL-001
     name: Moderation Analytics Dashboard
@@ -260,9 +260,9 @@ controls:
       - "NIST AI RMF – MEASURE"
     evidence: AUD-001
     implementation:
-      service: tbd
-      function: tbd
-      file: tbd
+      service: moderation
+      function: RecordFeedback + provider_accuracy view
+      file: internal/feedback/tracker.go
 
   - id: ANL-003
     name: Policy Effectiveness Analytics
@@ -272,9 +272,9 @@ controls:
       - "NIST AI RMF – MEASURE"
     evidence: AUD-001
     implementation:
-      service: tbd
-      function: tbd
-      file: tbd
+      service: review
+      function: Reporter.Generate (policy effectiveness in compliance reports)
+      file: internal/compliance/reporter.go
 
   - id: INT-001
     name: Webhook Event Notification

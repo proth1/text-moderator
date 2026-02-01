@@ -1,0 +1,122 @@
+groups:
+  - name: civitas-ai-slos
+    interval: 30s
+    rules:
+      # --- Availability SLO: 99.9% success rate ---
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "{{ $labels.service }} error rate exceeds 0.1% SLO"
+          description: "{{ $labels.service }} has {{ $value | humanizePercentage }} error rate (SLO: 99.9%)"
+
+      # --- Latency SLO: p99 < 2s for moderation ---
+      - alert: HighModerationLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{service="moderation",path="/moderate"}[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "Moderation p99 latency exceeds 2s SLO"
+          description: "p99 latency is {{ $value }}s (SLO: <2s)"
+
+      # --- Latency SLO: p95 < 500ms for gateway ---
+      - alert: HighGatewayLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{service="gateway"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "Gateway p95 latency exceeds 500ms SLO"
+          description: "p95 latency is {{ $value }}s (SLO: <500ms)"
+
+  - name: civitas-ai-operations
+    interval: 30s
+    rules:
+      # --- Review queue SLA ---
+      - alert: ReviewQueueBacklog
+        expr: review_queue_size > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Review queue has {{ $value }} pending items"
+          description: "Review queue exceeds 100 items for 15+ minutes"
+
+      - alert: ReviewQueueCritical
+        expr: review_queue_size > 500
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Review queue critical: {{ $value }} pending items"
+
+      # --- Rate limiting pressure ---
+      - alert: HighRateLimitRejections
+        expr: |
+          sum(rate(http_requests_total{status="429"}[5m])) by (service) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service }} rate limiting >10 req/s"
+
+      # --- Cache performance ---
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            sum(rate(classification_cache_hits_total[5m]))
+            /
+            (sum(rate(classification_cache_hits_total[5m])) + sum(rate(classification_cache_misses_total[5m])))
+          ) < 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Classification cache hit rate below 30%"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # --- Webhook delivery ---
+      - alert: WebhookDeliveryFailures
+        expr: |
+          sum(rate(webhook_delivery_total{status="failure"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Webhook delivery failures detected"
+
+      # --- Service health ---
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+
+      # --- Database connection pool ---
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          pg_pool_idle_connections / pg_pool_max_connections < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool nearly exhausted"

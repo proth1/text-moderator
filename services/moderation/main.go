@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,9 +29,11 @@ import (
 	"github.com/proth1/text-moderator/internal/middleware"
 	"github.com/proth1/text-moderator/internal/models"
 	"github.com/proth1/text-moderator/internal/normalizer"
+	"github.com/proth1/text-moderator/internal/observability"
 	"github.com/proth1/text-moderator/internal/webhook"
 	"github.com/proth1/text-moderator/services/moderation/client"
 	"github.com/proth1/text-moderator/services/policy-engine/engine"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 )
 
@@ -176,8 +181,22 @@ func main() {
 	// Initialize webhook dispatcher
 	webhookDispatcher := webhook.NewDispatcher(db.Pool, logger)
 
+	// Initialize distributed tracing
+	tracingShutdown, err := observability.InitTracing(context.Background(), "moderation", cfg.Version, cfg.OTLPEndpoint, logger)
+	if err != nil {
+		logger.Warn("failed to initialize tracing", zap.Error(err))
+	} else {
+		defer tracingShutdown(context.Background())
+	}
+
+	// Initialize Prometheus metrics
+	metrics := observability.NewMetrics("moderation")
+
+	// Initialize async worker pool for background moderation jobs
+	asyncPool := newAsyncWorkerPool(1000, 5, logger)
+
 	// Create HTTP server
-	router := setupRouter(cfg, logger, db, hfClient, evaluator, evidenceWriter, redisCache, orchestrator, webhookDispatcher, textNormalizer, langDetector, llmProvider, behaviorScorer)
+	router := setupRouter(cfg, logger, db, hfClient, evaluator, evidenceWriter, redisCache, orchestrator, webhookDispatcher, textNormalizer, langDetector, llmProvider, behaviorScorer, metrics, asyncPool)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.ModerationPort),
 		Handler:           router,
@@ -202,29 +221,36 @@ func main() {
 
 	logger.Info("shutting down moderation service")
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Graceful shutdown: stop accepting new HTTP requests first
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server forced to shutdown", zap.Error(err))
 	}
+
+	// Drain async worker pool (waits for in-flight jobs to finish)
+	logger.Info("draining async worker pool")
+	asyncPool.shutdown()
 
 	logger.Info("moderation service stopped")
 }
 
-func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, hfClient *client.HuggingFaceClient, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, orchestrator *classifier.Orchestrator, webhookDispatcher *webhook.Dispatcher, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer) *gin.Engine {
+func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB, hfClient *client.HuggingFaceClient, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, orchestrator *classifier.Orchestrator, webhookDispatcher *webhook.Dispatcher, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer, metrics *observability.Metrics, asyncPool *asyncWorkerPool) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(otelgin.Middleware("moderation"))
 	router.Use(middleware.LoggingMiddleware(logger))
 	router.Use(middleware.CORSMiddleware(middleware.CORSConfigFromOrigins(cfg.AllowedOrigins)))
+	router.Use(observability.MetricsMiddleware(metrics))
 
-	// Health check - public for load balancer probes
+	// Health check and metrics - public for load balancer probes
 	router.GET("/health", healthHandler(db, hfClient, logger))
+	router.GET("/metrics", observability.PrometheusHandler())
 
 	// Moderation endpoint - requires internal service authentication
 	// In production, INTERNAL_SERVICE_TOKEN must be set
@@ -238,8 +264,12 @@ func setupRouter(cfg *config.Config, logger *zap.Logger, db *database.PostgresDB
 	} else {
 		logger.Warn("INTERNAL_SERVICE_TOKEN not configured - internal endpoints are unprotected (development mode only)")
 	}
-	api.POST("/moderate", moderateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer))
-	api.POST("/moderate/batch", batchModerateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer))
+	api.POST("/moderate", moderateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer, metrics))
+
+	// Batch and async endpoints use idempotency middleware to prevent duplicate processing
+	idempotencyMW := middleware.IdempotencyMiddleware(redisCache, logger)
+	api.POST("/moderate/batch", idempotencyMW, batchModerateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer, metrics))
+	api.POST("/moderate/async", idempotencyMW, asyncModerateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer, metrics, asyncPool))
 
 	return router
 }
@@ -295,8 +325,9 @@ var sourcePattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
 // classificationCacheTTL is how long cached classification results remain valid.
 const classificationCacheTTL = 15 * time.Minute
 
-func moderateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestrator, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, webhookDispatcher *webhook.Dispatcher, cfg *config.Config, logger *zap.Logger, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer) gin.HandlerFunc {
+func moderateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestrator, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, webhookDispatcher *webhook.Dispatcher, cfg *config.Config, logger *zap.Logger, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer, metrics *observability.Metrics) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		moderationStart := time.Now()
 		var req models.ModerationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			// SECURITY: Don't expose detailed parsing errors to clients
@@ -380,18 +411,20 @@ func moderateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestra
 				if json.Unmarshal([]byte(cached), &cachedScores) == nil {
 					scores = &cachedScores
 					cacheHit = true
+					metrics.ClassificationCacheHits.Inc()
 					logger.Debug("classification cache hit", zap.String("content_hash", contentHash))
 				}
 			}
 		}
 
-		// Detect language before classification
+		// Detect language (needed for response and language-aware classification)
 		langResult := langDetector.Detect(normalizedContent)
 
 		// Classify normalized text using orchestrator if not cached
 		var classResult *classifier.ClassificationResult
 		var ensembleResult *classifier.EnsembleResult
 		if !cacheHit {
+			metrics.ClassificationCacheMisses.Inc()
 			if orchestrator.IsEnsembleEnabled() {
 				// Ensemble mode: run multiple providers in parallel
 				ensembleResult, err = orchestrator.ClassifyEnsemble(ctx, normalizedContent)
@@ -580,6 +613,19 @@ func moderateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestra
 			response.PolicyVersion = &policy.Version
 		}
 
+		// Record moderation metrics
+		providerName := "cache"
+		if classResult != nil {
+			providerName = classResult.ProviderName
+		}
+		metrics.ModerationTotal.WithLabelValues(string(action), providerName).Inc()
+		metrics.ModerationActions.WithLabelValues(string(action)).Inc()
+		cacheHitStr := "false"
+		if cacheHit {
+			cacheHitStr = "true"
+		}
+		metrics.ModerationDuration.WithLabelValues(providerName, cacheHitStr).Observe(time.Since(moderationStart).Seconds())
+
 		c.JSON(http.StatusOK, response)
 
 		// Dispatch webhook events and record behavior asynchronously (non-blocking)
@@ -603,7 +649,7 @@ const maxBatchSize = 100
 // batchWorkerPool controls concurrent classification requests.
 const batchWorkerPool = 10
 
-func batchModerateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestrator, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, webhookDispatcher *webhook.Dispatcher, cfg *config.Config, logger *zap.Logger, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer) gin.HandlerFunc {
+func batchModerateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestrator, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, webhookDispatcher *webhook.Dispatcher, cfg *config.Config, logger *zap.Logger, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer, metrics *observability.Metrics) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req models.BatchModerationRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -811,4 +857,165 @@ func processBatchItem(ctx context.Context, db *database.PostgresDB, orchestrator
 	result.CategoryScores = scores
 	result.RequiresReview = action == models.ActionEscalate
 	return result
+}
+
+// --- Async Moderation Worker Pool ---
+
+// asyncJob represents a pending async moderation request.
+type asyncJob struct {
+	RequestID   uuid.UUID
+	Request     models.ModerationRequest
+	CallbackURL string
+}
+
+// asyncWorkerPool processes async moderation jobs with graceful shutdown.
+type asyncWorkerPool struct {
+	jobs   chan asyncJob
+	wg     sync.WaitGroup
+	logger *zap.Logger
+}
+
+func newAsyncWorkerPool(bufferSize, workerCount int, logger *zap.Logger) *asyncWorkerPool {
+	return &asyncWorkerPool{
+		jobs:   make(chan asyncJob, bufferSize),
+		logger: logger,
+	}
+}
+
+func (p *asyncWorkerPool) start(workerCount int, processFn func(asyncJob)) {
+	for i := 0; i < workerCount; i++ {
+		p.wg.Add(1)
+		go func(id int) {
+			defer p.wg.Done()
+			for job := range p.jobs {
+				processFn(job)
+			}
+			p.logger.Info("async worker stopped", zap.Int("worker_id", id))
+		}(i)
+	}
+}
+
+func (p *asyncWorkerPool) submit(job asyncJob) bool {
+	select {
+	case p.jobs <- job:
+		return true
+	default:
+		return false // buffer full
+	}
+}
+
+func (p *asyncWorkerPool) shutdown() {
+	close(p.jobs)
+	p.wg.Wait()
+}
+
+// --- Async Moderation Handler ---
+
+func asyncModerateHandler(db *database.PostgresDB, orchestrator *classifier.Orchestrator, evaluator *engine.Evaluator, evidenceWriter *evidence.Writer, redisCache *cache.RedisCache, webhookDispatcher *webhook.Dispatcher, cfg *config.Config, logger *zap.Logger, textNormalizer *normalizer.Normalizer, langDetector *langdetect.Detector, llmProvider *classifier.LLMProvider, behaviorScorer *behavior.Scorer, metrics *observability.Metrics, pool *asyncWorkerPool) gin.HandlerFunc {
+	// Create the sync handler to reuse the moderation pipeline
+	syncHandler := moderateHandler(db, orchestrator, evaluator, evidenceWriter, redisCache, webhookDispatcher, cfg, logger, textNormalizer, langDetector, llmProvider, behaviorScorer, metrics)
+
+	// Start workers that process async jobs
+	pool.start(5, func(job asyncJob) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		// Build a sync moderation request and capture the response
+		syncReq := models.ModerationRequest{
+			Content:         job.Request.Content,
+			ContextMetadata: job.Request.ContextMetadata,
+			Source:          job.Request.Source,
+			PolicyID:        job.Request.PolicyID,
+		}
+
+		recorder := &responseRecorder{body: new(bytes.Buffer)}
+		fakeCtx, _ := gin.CreateTestContext(recorder)
+		fakeCtx.Request, _ = http.NewRequestWithContext(bgCtx, "POST", "/moderate", nil)
+
+		bodyBytes, _ := json.Marshal(syncReq)
+		fakeCtx.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		fakeCtx.Request.Header.Set("Content-Type", "application/json")
+
+		syncHandler(fakeCtx)
+
+		// Deliver result to callback URL with HMAC signature
+		callbackBody := recorder.body.Bytes()
+		signature := computeHMAC(callbackBody, cfg.InternalServiceToken)
+
+		callbackReq, err := http.NewRequestWithContext(bgCtx, http.MethodPost, job.CallbackURL, bytes.NewReader(callbackBody))
+		if err != nil {
+			logger.Error("async moderation: failed to create callback request", zap.Error(err))
+			return
+		}
+		callbackReq.Header.Set("Content-Type", "application/json")
+		callbackReq.Header.Set("X-Request-ID", job.RequestID.String())
+		callbackReq.Header.Set("X-Signature", signature)
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(callbackReq)
+		if err != nil {
+			logger.Error("async moderation: callback delivery failed", zap.Error(err), zap.String("callback_url", job.CallbackURL))
+			return
+		}
+		resp.Body.Close()
+
+		logger.Info("async moderation: callback delivered",
+			zap.String("request_id", job.RequestID.String()),
+			zap.Int("status", resp.StatusCode),
+		)
+	})
+
+	return func(c *gin.Context) {
+		var req models.AsyncModerationRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			return
+		}
+
+		if req.CallbackURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "callback_url is required"})
+			return
+		}
+
+		requestID := uuid.New()
+
+		job := asyncJob{
+			RequestID:   requestID,
+			Request: models.ModerationRequest{
+				Content:         req.Content,
+				ContextMetadata: req.ContextMetadata,
+				Source:          req.Source,
+				PolicyID:        req.PolicyID,
+			},
+			CallbackURL: req.CallbackURL,
+		}
+
+		if !pool.submit(job) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "async queue is full, try again later",
+			})
+			return
+		}
+
+		c.JSON(http.StatusAccepted, models.AsyncModerationResponse{
+			RequestID: requestID,
+			Status:    "queued",
+		})
+	}
+}
+
+// responseRecorder captures HTTP response data for async processing.
+type responseRecorder struct {
+	body       *bytes.Buffer
+	statusCode int
+}
+
+func (r *responseRecorder) Header() http.Header        { return http.Header{} }
+func (r *responseRecorder) Write(b []byte) (int, error) { return r.body.Write(b) }
+func (r *responseRecorder) WriteHeader(code int)        { r.statusCode = code }
+
+func computeHMAC(data []byte, secret string) string {
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }

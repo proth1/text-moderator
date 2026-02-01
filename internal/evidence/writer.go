@@ -2,6 +2,9 @@ package evidence
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -30,13 +33,16 @@ func NewWriter(db *pgxpool.Pool, logger *zap.Logger) *Writer {
 // WriteEvidenceInTx writes an evidence record within an existing transaction.
 // This ensures decision + evidence are atomically committed together.
 func (w *Writer) WriteEvidenceInTx(ctx context.Context, tx pgx.Tx, evidence *models.EvidenceRecord) error {
+	// Compute hash chain (reads previous hash from DB outside tx for simplicity)
+	w.computeChainHash(ctx, evidence)
+
 	query := `
 		INSERT INTO evidence_records (
 			id, control_id, policy_id, policy_version, decision_id, review_id,
 			model_name, model_version, category_scores, automated_action,
-			human_override, submission_hash, immutable
+			human_override, submission_hash, immutable, chain_hash, previous_hash
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)
 	`
 
@@ -54,6 +60,8 @@ func (w *Writer) WriteEvidenceInTx(ctx context.Context, tx pgx.Tx, evidence *mod
 		evidence.HumanOverride,
 		evidence.SubmissionHash,
 		evidence.Immutable,
+		evidence.ChainHash,
+		evidence.PreviousHash,
 	)
 
 	if err != nil {
@@ -129,15 +137,55 @@ func (w *Writer) RecordPolicyApplication(ctx context.Context, policy *models.Pol
 	return w.writeEvidence(ctx, evidence)
 }
 
-// writeEvidence writes an evidence record to the database
+// computeChainHash builds the hash chain by fetching the latest chain_hash
+// and computing SHA-256(previous_hash + record fields).
+func (w *Writer) computeChainHash(ctx context.Context, evidence *models.EvidenceRecord) {
+	// Get the most recent chain_hash
+	var prevHash *string
+	err := w.db.QueryRow(ctx,
+		`SELECT chain_hash FROM evidence_records WHERE chain_hash IS NOT NULL ORDER BY created_at DESC LIMIT 1`,
+	).Scan(&prevHash)
+	if err != nil {
+		// No previous record or query error — start a new chain
+		prevHash = nil
+	}
+	evidence.PreviousHash = prevHash
+
+	// Build canonical data string for hashing
+	prev := ""
+	if prevHash != nil {
+		prev = *prevHash
+	}
+	data := fmt.Sprintf("%s|%s|%s", prev, evidence.ID.String(), evidence.ControlID)
+	if evidence.DecisionID != nil {
+		data += "|" + evidence.DecisionID.String()
+	}
+	if evidence.CategoryScores != nil {
+		if scoreBytes, err := json.Marshal(evidence.CategoryScores); err == nil {
+			data += "|" + string(scoreBytes)
+		}
+	}
+	if evidence.SubmissionHash != nil {
+		data += "|" + *evidence.SubmissionHash
+	}
+
+	h := sha256.Sum256([]byte(data))
+	chainHash := hex.EncodeToString(h[:])
+	evidence.ChainHash = &chainHash
+}
+
+// writeEvidence writes an evidence record to the database with hash chain.
 func (w *Writer) writeEvidence(ctx context.Context, evidence *models.EvidenceRecord) error {
+	// Compute tamper-proof hash chain
+	w.computeChainHash(ctx, evidence)
+
 	query := `
 		INSERT INTO evidence_records (
 			id, control_id, policy_id, policy_version, decision_id, review_id,
 			model_name, model_version, category_scores, automated_action,
-			human_override, submission_hash, immutable
+			human_override, submission_hash, immutable, chain_hash, previous_hash
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)
 	`
 
@@ -155,6 +203,8 @@ func (w *Writer) writeEvidence(ctx context.Context, evidence *models.EvidenceRec
 		evidence.HumanOverride,
 		evidence.SubmissionHash,
 		evidence.Immutable,
+		evidence.ChainHash,
+		evidence.PreviousHash,
 	)
 
 	if err != nil {
@@ -179,7 +229,7 @@ func (w *Writer) ListEvidence(ctx context.Context, controlID *string, limit int,
 	query := `
 		SELECT id, control_id, policy_id, policy_version, decision_id, review_id,
 		       model_name, model_version, category_scores, automated_action,
-		       human_override, submission_hash, immutable, created_at
+		       human_override, submission_hash, immutable, chain_hash, previous_hash, created_at
 		FROM evidence_records
 		WHERE ($1::text IS NULL OR control_id = $1)
 		ORDER BY created_at DESC
@@ -209,6 +259,8 @@ func (w *Writer) ListEvidence(ctx context.Context, controlID *string, limit int,
 			&record.HumanOverride,
 			&record.SubmissionHash,
 			&record.Immutable,
+			&record.ChainHash,
+			&record.PreviousHash,
 			&record.CreatedAt,
 		)
 		if err != nil {

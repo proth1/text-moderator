@@ -60,6 +60,13 @@ type Config struct {
 	LLMAPIKey   string
 	LLMModel    string
 
+	// Data Retention
+	RetentionSubmissionDays int
+	RetentionDecisionDays   int
+
+	// Observability
+	OTLPEndpoint string // OTLP HTTP endpoint for distributed tracing (e.g., "localhost:4318")
+
 	// Logging
 	LogLevel string
 	LogJSON  bool
@@ -119,6 +126,13 @@ func Load() (*Config, error) {
 		RateLimitRPM:         getEnvAsInt("RATE_LIMIT_RPM", 60),
 		MaxContentLength:     getEnvAsInt("MAX_CONTENT_LENGTH", 10000),
 		InternalServiceToken: getEnv("INTERNAL_SERVICE_TOKEN", ""), // Required in production
+
+		// Data Retention
+		RetentionSubmissionDays: getEnvAsInt("RETENTION_SUBMISSION_DAYS", 90),
+		RetentionDecisionDays:   getEnvAsInt("RETENTION_DECISION_DAYS", 365),
+
+		// Observability
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 
 		// Logging
 		LogLevel: getEnv("LOG_LEVEL", "info"),

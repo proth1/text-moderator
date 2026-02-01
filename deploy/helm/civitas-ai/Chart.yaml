@@ -1,0 +1,12 @@
+apiVersion: v2
+name: civitas-ai
+description: Civitas AI Content Moderation Platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - moderation
+  - content-safety
+  - ai
+maintainers:
+  - name: Civitas AI Team

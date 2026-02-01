@@ -13,9 +13,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/proth1/text-moderator/internal/cache"
 	"github.com/proth1/text-moderator/internal/config"
 	"github.com/proth1/text-moderator/internal/middleware"
 	"github.com/proth1/text-moderator/internal/models"
+	"github.com/proth1/text-moderator/internal/observability"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
@@ -57,8 +62,38 @@ func main() {
 		zap.String("environment", cfg.Environment),
 	)
 
+	// Initialize distributed tracing
+	tracingShutdown, err := observability.InitTracing(context.Background(), "gateway", cfg.Version, cfg.OTLPEndpoint, logger)
+	if err != nil {
+		logger.Warn("failed to initialize tracing", zap.Error(err))
+	} else {
+		defer tracingShutdown(context.Background())
+	}
+
+	// Initialize Prometheus metrics
+	metrics := observability.NewMetrics("gateway")
+
+	// Initialize Redis for distributed rate limiting (optional, falls back to in-memory)
+	var redisCache *cache.RedisCache
+	if cfg.RedisURL != "" {
+		ctx := context.Background()
+		rc, err := cache.NewRedisCache(ctx, cache.Config{
+			URL:         cfg.RedisURL,
+			MaxRetries:  3,
+			DialTimeout: 5 * time.Second,
+			ReadTimeout: 3 * time.Second,
+		}, logger)
+		if err != nil {
+			logger.Warn("redis unavailable, falling back to in-memory rate limiting", zap.Error(err))
+		} else {
+			redisCache = rc
+			defer redisCache.Close()
+			logger.Info("redis-backed distributed rate limiting enabled")
+		}
+	}
+
 	// Create HTTP server
-	router := setupRouter(cfg, logger)
+	router := setupRouter(cfg, logger, metrics, redisCache)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.GatewayPort),
 		Handler:           router,
@@ -94,20 +129,28 @@ func main() {
 	logger.Info("gateway service stopped")
 }
 
-func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, logger *zap.Logger, metrics *observability.Metrics, redisCache *cache.RedisCache) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(otelgin.Middleware("gateway"))
 	router.Use(middleware.LoggingMiddleware(logger))
 	router.Use(middleware.SecurityHeadersMiddleware(cfg.Environment))
 	router.Use(middleware.CORSMiddleware(middleware.CORSConfigFromOrigins(cfg.AllowedOrigins)))
+	router.Use(observability.MetricsMiddleware(metrics))
 
-	// Rate limiting
-	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM)
-	router.Use(rateLimiter.Middleware())
+	// Rate limiting — use Redis-backed distributed limiter when available,
+	// fall back to in-memory for single-instance deployments
+	if redisCache != nil {
+		redisLimiter := middleware.NewRedisRateLimiter(redisCache, cfg.RateLimitRPM)
+		router.Use(redisLimiter.Middleware())
+	} else {
+		rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM)
+		router.Use(rateLimiter.Middleware())
+	}
 
 	// Request body size limit
 	router.Use(func(c *gin.Context) {
@@ -142,8 +185,9 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 		c.Next()
 	})
 
-	// Health check (no auth required)
-	router.GET("/health", healthHandler())
+	// Health check and metrics (no auth required)
+	router.GET("/health", healthHandler(cfg, logger))
+	router.GET("/metrics", observability.PrometheusHandler())
 
 	// API v1 routes with API key authentication
 	v1 := router.Group("/api/v1")
@@ -162,6 +206,8 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 		v1.GET("/reviews", proxyHandler(cfg, logger, "review", "/reviews"))
 		v1.GET("/reviews/:id", proxyHandler(cfg, logger, "review", "/reviews/:id"))
 		v1.POST("/reviews/:id/action", proxyHandler(cfg, logger, "review", "/reviews/:id/action"))
+		v1.POST("/reviews/:id/claim", proxyHandler(cfg, logger, "review", "/reviews/:id/claim"))
+		v1.POST("/reviews/:id/unclaim", proxyHandler(cfg, logger, "review", "/reviews/:id/unclaim"))
 		v1.GET("/evidence", proxyHandler(cfg, logger, "review", "/evidence"))
 		v1.GET("/evidence/export", proxyHandler(cfg, logger, "review", "/evidence/export"))
 
@@ -172,20 +218,74 @@ func setupRouter(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 
 		// Compliance report generation proxy
 		v1.POST("/reports/generate", proxyHandler(cfg, logger, "review", "/reports/generate"))
+		v1.GET("/reports/fairness", proxyHandler(cfg, logger, "review", "/reports/fairness"))
 
 		// Batch moderation proxy
 		v1.POST("/moderate/batch", proxyHandler(cfg, logger, "moderation", "/moderate/batch"))
+
+		// Async moderation proxy
+		v1.POST("/moderate/async", proxyHandler(cfg, logger, "moderation", "/moderate/async"))
+
+		// GDPR erasure proxy
+		v1.DELETE("/submissions/:hash", proxyHandler(cfg, logger, "review", "/submissions/:hash"))
+
+		// API key management proxies
+		v1.GET("/api-keys", proxyHandler(cfg, logger, "review", "/api-keys"))
+		v1.POST("/api-keys", proxyHandler(cfg, logger, "review", "/api-keys"))
+		v1.DELETE("/api-keys/:user_id", proxyHandler(cfg, logger, "review", "/api-keys/:user_id"))
+		v1.POST("/api-keys/:user_id/rotate", proxyHandler(cfg, logger, "review", "/api-keys/:user_id/rotate"))
 	}
 
 	return router
 }
 
-func healthHandler() gin.HandlerFunc {
+func healthHandler(cfg *config.Config, logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		checks := make(map[string]string)
+		overallStatus := "healthy"
+
+		// Deep health checks: call downstream services
+		downstreams := map[string]string{
+			"moderation":    serviceBaseURL(cfg, "moderation"),
+			"policy-engine": serviceBaseURL(cfg, "policy-engine"),
+			"review":        serviceBaseURL(cfg, "review"),
+		}
+
+		for name, baseURL := range downstreams {
+			if baseURL == "" {
+				checks[name] = "unknown"
+				continue
+			}
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
+			if err != nil {
+				cancel()
+				checks[name] = "unhealthy"
+				overallStatus = "degraded"
+				continue
+			}
+			resp, err := sharedHTTPClient.Do(req)
+			cancel()
+			if err != nil {
+				logger.Warn("downstream health check failed", zap.String("service", name), zap.Error(err))
+				checks[name] = "unhealthy"
+				overallStatus = "degraded"
+				continue
+			}
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				checks[name] = "healthy"
+			} else {
+				checks[name] = "unhealthy"
+				overallStatus = "degraded"
+			}
+		}
+
 		c.JSON(http.StatusOK, models.HealthResponse{
-			Status:  "healthy",
+			Status:  overallStatus,
 			Service: "gateway",
 			Version: "0.1.0",
+			Checks:  checks,
 		})
 	}
 }
@@ -274,6 +374,9 @@ func proxyHandler(cfg *config.Config, logger *zap.Logger, service string, path s
 				}
 			}
 		}
+
+		// Propagate trace context to downstream services
+		otel.GetTextMapPropagator().Inject(c.Request.Context(), propagation.HeaderCarrier(proxyReq.Header))
 
 		// Add internal service token for service-to-service authentication
 		if cfg.InternalServiceToken != "" {

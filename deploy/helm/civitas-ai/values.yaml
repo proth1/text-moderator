@@ -1,0 +1,142 @@
+global:
+  environment: production
+  imageRegistry: ""
+  imagePullSecrets: []
+
+gateway:
+  replicaCount: 2
+  image:
+    repository: civitas-ai/gateway
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+moderation:
+  replicaCount: 3
+  image:
+    repository: civitas-ai/moderation
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8081
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 75
+
+policyEngine:
+  replicaCount: 2
+  image:
+    repository: civitas-ai/policy-engine
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8082
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+review:
+  replicaCount: 2
+  image:
+    repository: civitas-ai/review
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8083
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+postgresql:
+  enabled: false
+  externalHost: ""
+  externalPort: 5432
+  auth:
+    existingSecret: civitas-db-credentials
+    secretKeys:
+      databaseUrl: DATABASE_URL
+
+redis:
+  enabled: false
+  externalHost: ""
+  externalPort: 6379
+  auth:
+    existingSecret: civitas-redis-credentials
+    secretKeys:
+      redisUrl: REDIS_URL
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: api.civitas-ai.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: civitas-ai-tls
+      hosts:
+        - api.civitas-ai.com
+
+observability:
+  otlpEndpoint: ""
+  prometheusEnabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+secrets:
+  internalServiceToken:
+    existingSecret: civitas-internal-token
+  huggingfaceApiKey:
+    existingSecret: civitas-hf-credentials

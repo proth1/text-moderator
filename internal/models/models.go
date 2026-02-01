@@ -143,6 +143,8 @@ type EvidenceRecord struct {
 	HumanOverride   *ReviewActionType `json:"human_override,omitempty" db:"human_override"`
 	SubmissionHash  *string           `json:"submission_hash,omitempty" db:"submission_hash"`
 	Immutable       bool              `json:"immutable" db:"immutable"`
+	ChainHash       *string           `json:"chain_hash,omitempty" db:"chain_hash"`
+	PreviousHash    *string           `json:"previous_hash,omitempty" db:"previous_hash"`
 	CreatedAt       time.Time         `json:"created_at" db:"created_at"`
 }
 
@@ -192,13 +194,16 @@ type CreatePolicyRequest struct {
 
 // ReviewQueueItem represents an item in the review queue
 type ReviewQueueItem struct {
-	DecisionID      uuid.UUID      `json:"decision_id"`
-	SubmissionID    uuid.UUID      `json:"submission_id"`
-	ContentHash     string         `json:"content_hash"`
-	CategoryScores  CategoryScores `json:"category_scores"`
-	AutomatedAction PolicyAction   `json:"automated_action"`
-	PolicyName      *string        `json:"policy_name,omitempty"`
-	CreatedAt       time.Time      `json:"created_at"`
+	DecisionID       uuid.UUID      `json:"decision_id"`
+	SubmissionID     uuid.UUID      `json:"submission_id"`
+	ContentHash      string         `json:"content_hash"`
+	CategoryScores   CategoryScores `json:"category_scores"`
+	AutomatedAction  PolicyAction   `json:"automated_action"`
+	PolicyName       *string        `json:"policy_name,omitempty"`
+	AssignedReviewer *uuid.UUID     `json:"assigned_reviewer,omitempty"`
+	AssignedAt       *time.Time     `json:"assigned_at,omitempty"`
+	SLADeadline      *time.Time     `json:"sla_deadline,omitempty"`
+	CreatedAt        time.Time      `json:"created_at"`
 }
 
 // SubmitReviewRequest represents a request to submit a review action
@@ -206,6 +211,23 @@ type SubmitReviewRequest struct {
 	Action        ReviewActionType `json:"action" binding:"required"`
 	Rationale     string           `json:"rationale,omitempty"`
 	EditedContent string           `json:"edited_content,omitempty"`
+}
+
+// --- Async Moderation Models ---
+
+// AsyncModerationRequest represents a request for asynchronous moderation.
+type AsyncModerationRequest struct {
+	Content         string                 `json:"content" binding:"required"`
+	ContextMetadata map[string]interface{} `json:"context_metadata,omitempty"`
+	Source          string                 `json:"source,omitempty"`
+	PolicyID        *uuid.UUID             `json:"policy_id,omitempty"`
+	CallbackURL     string                 `json:"callback_url" binding:"required"`
+}
+
+// AsyncModerationResponse is returned immediately for async requests.
+type AsyncModerationResponse struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Status    string    `json:"status"`
 }
 
 // HealthResponse represents a health check response
