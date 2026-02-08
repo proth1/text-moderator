@@ -1,0 +1,21 @@
+#!/bin/sh
+# text-moderator Commit Message Hook
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+if echo "$COMMIT_MSG" | grep -qE "^Merge "; then exit 0; fi
+if echo "$COMMIT_MSG" | grep -qE "^Revert "; then exit 0; fi
+
+if ! echo "$COMMIT_MSG" | grep -qE "^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?(!)?:"; then
+    echo "WARNING: Commit message doesn't follow conventional commits format"
+    echo "Expected: type(scope): description"
+    echo "Proceeding anyway (this is a warning, not a block)"
+fi
+
+if ! echo "$COMMIT_MSG" | grep -qE "#[0-9]+"; then
+    BRANCH=$(git branch --show-current 2>/dev/null)
+    if echo "$BRANCH" | grep -qE "^feature/[0-9]+"; then
+        ISSUE=$(echo "$BRANCH" | grep -oE '[0-9]+' | head -1)
+        echo "TIP: Consider referencing GitHub Issue #$ISSUE in your commit message"
+    fi
+fi

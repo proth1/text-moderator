@@ -1,0 +1,26 @@
+#!/bin/sh
+# text-moderator Pre-Commit Hook
+BRANCH=$(git branch --show-current)
+
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+    echo "BLOCKED: Direct commits to $BRANCH are not allowed"
+    echo ""
+    echo "Create a feature branch first:"
+    echo "  1. Create a GitHub Issue"
+    echo "  2. git checkout -b feature/<issue-number>-description"
+    echo ""
+    echo "To bypass in emergencies: git commit --no-verify"
+    exit 1
+fi
+
+case "$BRANCH" in
+    feature/*|fix/*|hotfix/*)
+        BRANCH_SUFFIX=$(echo "$BRANCH" | sed 's|^[^/]*/||')
+        if ! echo "$BRANCH_SUFFIX" | grep -qE '^[0-9]+-'; then
+            echo "WARNING: Branch '$BRANCH' doesn't follow naming convention"
+            echo "Expected: feature/<issue-number>-description"
+        fi
+        ;;
+    dependabot/*|renovate/*|release/*) ;;
+    *) echo "WARNING: Unrecognized branch naming pattern: $BRANCH" ;;
+esac
